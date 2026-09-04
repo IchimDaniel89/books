@@ -206,54 +206,78 @@
         const bookForm = document.getElementById('bookForm');
         const libraryGrid = document.getElementById('libraryGrid');
 
+        // Retrieve existing books from LocalStorage or start with an empty array
+        let myLibrary = JSON.parse(localStorage.getItem('myLibrary')) || [];
+
+        // Save library array to LocalStorage
+        function saveToLocalStorage() {
+            localStorage.setItem('myLibrary', JSON.stringify(myLibrary));
+        }
+
+        // Render all books on screen
+        function renderLibrary() {
+            libraryGrid.innerHTML = ''; // Clear existing cards
+
+            myLibrary.forEach((book, index) => {
+                const bookCard = document.createElement('div');
+                bookCard.classList.add('book-card');
+
+                bookCard.innerHTML = `
+                    <img src="${book.image}" alt="${book.title}">
+                    <div class="book-info">
+                        <div>
+                            <div class="book-title">${book.title}</div>
+                            <div class="book-author">by ${book.author}</div>
+                            <span class="book-genre">${book.genre}</span>
+                        </div>
+                        <button class="delete-btn" onclick="removeBook(${index})">Remove</button>
+                    </div>
+                `;
+
+                libraryGrid.appendChild(bookCard);
+            });
+        }
+
+        // Add a new book
         bookForm.addEventListener('submit', function(event) {
             event.preventDefault();
 
-            // Get text input values
             const titleInput = document.getElementById('title').value;
             const authorInput = document.getElementById('author').value;
             const genreInput = document.getElementById('genre').value;
             const imageFileInput = document.getElementById('imageFile');
-
             const file = imageFileInput.files[0];
 
             if (file) {
-                // Read local image file using FileReader
                 const reader = new FileReader();
 
                 reader.onload = function(e) {
-                    const imageDataUrl = e.target.result;
+                    const newBook = {
+                        title: titleInput,
+                        author: authorInput,
+                        genre: genreInput,
+                        image: e.target.result
+                    };
 
-                    // Create book card element
-                    const bookCard = document.createElement('div');
-                    bookCard.classList.add('book-card');
-
-                    // Render details inside card
-                    bookCard.innerHTML = `
-                        <img src="${imageDataUrl}" alt="${titleInput}">
-                        <div class="book-info">
-                            <div>
-                                <div class="book-title">${titleInput}</div>
-                                <div class="book-author">by ${authorInput}</div>
-                                <span class="book-genre">${genreInput}</span>
-                            </div>
-                            <button class="delete-btn">Remove</button>
-                        </div>
-                    `;
-
-                    // Handle card removal
-                    const deleteBtn = bookCard.querySelector('.delete-btn');
-                    deleteBtn.addEventListener('click', function() {
-                        bookCard.remove();
-                    });
-
-                    libraryGrid.appendChild(bookCard);
+                    myLibrary.push(newBook);
+                    saveToLocalStorage();
+                    renderLibrary();
                     bookForm.reset();
                 };
 
-                reader.readAsDataURL(file); // Convert local file to displayable string
+                reader.readAsDataURL(file);
             }
         });
+
+        // Remove a book by index
+        function removeBook(index) {
+            myLibrary.splice(index, 1);
+            saveToLocalStorage();
+            renderLibrary();
+        }
+
+        // Initial load when page opens
+        renderLibrary();
     </script>
 </body>
 </html>
