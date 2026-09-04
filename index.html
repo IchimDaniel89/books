@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Book Library</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f4f5f7;
+            color: #333;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Form Styling */
+        .form-container {
+            max-width: 500px;
+            margin: 0 auto 2.5rem auto;
+            background: #ffffff;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        input[type="text"],
+        input[type="url"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        button.add-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #2bc48a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button.add-btn:hover {
+            background-color: #25a272;
+        }
+
+        /* Library Grid Styling */
+        .library-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1.5rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .book-card {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+
+        .book-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .book-card img {
+            width: 100%;
+            height: 240px;
+            object-fit: cover;
+            background-color: #e2e8f0;
+        }
+
+        .book-info {
+            padding: 1rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .book-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #1a202c;
+        }
+
+        .delete-btn {
+            background-color: #e53e3e;
+            color: white;
+            border: none;
+            padding: 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .delete-btn:hover {
+            background-color: #c53030;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>My Personal Library</h1>
+        <p>Keep track of the books you own</p>
+    </header>
+
+    <!-- Input Form -->
+    <div class="form-container">
+        <form id="bookForm">
+            <div class="form-group">
+                <label for="title">Book Title</label>
+                <input type="text" id="title" placeholder="e.g. The Hobbit" required>
+            </div>
+            <div class="form-group">
+                <label for="imageUrl">Image URL</label>
+                <input type="url" id="imageUrl" placeholder="e.g. https://example.com/cover.jpg" required>
+            </div>
+            <button type="submit" class="add-btn">Add Book</button>
+        </form>
+    </div>
+
+    <!-- Books Display Area -->
+    <div class="library-grid" id="libraryGrid">
+        <!-- New books will appear here dynamically -->
+    </div>
+
+    <script>
+        const bookForm = document.getElementById('bookForm');
+        const libraryGrid = document.getElementById('libraryGrid');
+
+        // Function to add a new book card
+        bookForm.addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent form from refreshing the page
+
+            // Get user input values
+            const titleInput = document.getElementById('title').value;
+            const imageInput = document.getElementById('imageUrl').value;
+
+            // Create book card container
+            const bookCard = document.createElement('div');
+            bookCard.classList.add('book-card');
+
+            // Set inner content
+            bookCard.innerHTML = `
+                <img src="${imageInput}" alt="${titleInput}" onerror="this.src='https://via.placeholder.com/180x240?text=No+Cover'">
+                <div class="book-info">
+                    <div class="book-title">${titleInput}</div>
+                    <button class="delete-btn">Remove</button>
+                </div>
+            `;
+
+            // Add delete event listener to the remove button
+            const deleteBtn = bookCard.querySelector('.delete-btn');
+            deleteBtn.addEventListener('click', function() {
+                bookCard.remove();
+            });
+
+            // Append the book card to the grid
+            libraryGrid.appendChild(bookCard);
+
+            // Clear input fields
+            bookForm.reset();
+        });
+    </script>
+</body>
+</html>
