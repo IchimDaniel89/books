@@ -111,7 +111,45 @@
             background-color: #25a272;
         }
 
-        /* Filter Section */
+        /* Stats & Filter Section */
+        .stats-container {
+            max-width: 800px;
+            margin: 0 auto 1.5rem auto;
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .total-count {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 0.75rem;
+            text-align: center;
+        }
+
+        .genre-stats {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .stat-badge {
+            background-color: #edf2f7;
+            color: #4a5568;
+            font-size: 0.85rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .stat-badge span {
+            color: #2bc48a;
+            font-weight: 700;
+        }
+
         .filter-container {
             max-width: 300px;
             margin: 0 auto 2rem auto;
@@ -253,6 +291,11 @@
     </section>
 
     <section id="libraryView" class="view">
+        <div class="stats-container">
+            <div class="total-count" id="totalCount">Total Books: 0</div>
+            <div class="genre-stats" id="genreStats"></div>
+        </div>
+
         <div class="filter-container">
             <label for="filterGenre">Filter by Genre</label>
             <select id="filterGenre">
@@ -271,7 +314,6 @@
     </section>
 
     <script>
-        // DOM Elements
         const addTab = document.getElementById('addTab');
         const libraryTab = document.getElementById('libraryTab');
         const addView = document.getElementById('addView');
@@ -280,11 +322,12 @@
         const bookForm = document.getElementById('bookForm');
         const libraryGrid = document.getElementById('libraryGrid');
         const filterGenre = document.getElementById('filterGenre');
+        const totalCountEl = document.getElementById('totalCount');
+        const genreStatsEl = document.getElementById('genreStats');
 
-        // Retrieve existing books from LocalStorage
         let myLibrary = JSON.parse(localStorage.getItem('myLibrary')) || [];
 
-        // Tab Navigation Logic
+        // Navigation
         addTab.addEventListener('click', () => {
             addTab.classList.add('active');
             libraryTab.classList.remove('active');
@@ -297,19 +340,38 @@
             addTab.classList.remove('active');
             libraryView.classList.add('active');
             addView.classList.remove('active');
-            renderLibrary(); // Re-render when switching views
+            renderLibrary();
         });
 
         function saveToLocalStorage() {
             localStorage.setItem('myLibrary', JSON.stringify(myLibrary));
         }
 
-        // Render Books based on selected Genre Filter
+        // Update statistics display
+        function updateStats() {
+            totalCountEl.textContent = `Total Books: ${myLibrary.length}`;
+
+            // Count books per genre
+            const counts = {};
+            myLibrary.forEach(book => {
+                counts[book.genre] = (counts[book.genre] || 0) + 1;
+            });
+
+            genreStatsEl.innerHTML = '';
+            for (const [genre, count] of Object.entries(counts)) {
+                const badge = document.createElement('div');
+                badge.classList.add('stat-badge');
+                badge.innerHTML = `${genre}: <span>${count}</span>`;
+                genreStatsEl.appendChild(badge);
+            }
+        }
+
+        // Render Books & Stats
         function renderLibrary() {
+            updateStats();
             libraryGrid.innerHTML = '';
             const selectedGenre = filterGenre.value;
 
-            // Filter books list
             const filteredBooks = selectedGenre === 'All' 
                 ? myLibrary 
                 : myLibrary.filter(book => book.genre === selectedGenre);
@@ -320,7 +382,6 @@
             }
 
             filteredBooks.forEach((book) => {
-                // Find original index in myLibrary to handle deletion properly
                 const originalIndex = myLibrary.indexOf(book);
 
                 const bookCard = document.createElement('div');
@@ -342,7 +403,7 @@
             });
         }
 
-        // Handle Add Book
+        // Add Book
         bookForm.addEventListener('submit', function(event) {
             event.preventDefault();
 
@@ -366,8 +427,6 @@
                     myLibrary.push(newBook);
                     saveToLocalStorage();
                     bookForm.reset();
-
-                    // Automatically switch to Library view after adding
                     libraryTab.click();
                 };
 
@@ -375,10 +434,8 @@
             }
         });
 
-        // Filter dropdown event listener
         filterGenre.addEventListener('change', renderLibrary);
 
-        // Remove a book
         function removeBook(index) {
             myLibrary.splice(index, 1);
             saveToLocalStorage();
