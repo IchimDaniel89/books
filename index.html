@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Book Library</title>
+    <title>My Personal Library</title>
     <style>
         * {
             box-sizing: border-box;
@@ -20,7 +20,7 @@
 
         header {
             text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
         }
 
         h1 {
@@ -28,10 +28,44 @@
             margin-bottom: 0.5rem;
         }
 
+        /* Navigation Bar */
+        nav {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .nav-btn {
+            padding: 0.6rem 1.2rem;
+            border: 2px solid #2bc48a;
+            background-color: transparent;
+            color: #2bc48a;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn.active, .nav-btn:hover {
+            background-color: #2bc48a;
+            color: white;
+        }
+
+        /* Views management */
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
         /* Form Styling */
         .form-container {
             max-width: 500px;
-            margin: 0 auto 2.5rem auto;
+            margin: 0 auto;
             background: #ffffff;
             padding: 1.5rem;
             border-radius: 8px;
@@ -75,6 +109,13 @@
 
         button.add-btn:hover {
             background-color: #25a272;
+        }
+
+        /* Filter Section */
+        .filter-container {
+            max-width: 300px;
+            margin: 0 auto 2rem auto;
+            text-align: center;
         }
 
         /* Library Grid Styling */
@@ -158,67 +199,130 @@
         .delete-btn:hover {
             background-color: #c53030;
         }
+
+        .empty-message {
+            text-align: center;
+            color: #718096;
+            grid-column: 1 / -1;
+            font-size: 1.1rem;
+        }
     </style>
 </head>
 <body>
 
     <header>
         <h1>My Personal Library</h1>
-        <p>Keep track of the books you own</p>
     </header>
 
-    <!-- Input Form -->
-    <div class="form-container">
-        <form id="bookForm">
-            <div class="form-group">
-                <label for="title">Book Title</label>
-                <input type="text" id="title" placeholder="e.g. The Hobbit" required>
-            </div>
-            <div class="form-group">
-                <label for="author">Author</label>
-                <input type="text" id="author" placeholder="e.g. J.R.R. Tolkien" required>
-            </div>
-            <div class="form-group">
-                <label for="genre">Genre</label>
-                <select id="genre" required>
-                    <option value="" disabled selected>Select a genre</option>
-                    <option value="Fantasy">Fantasy</option>
-                    <option value="Sci-Fi">Sci-Fi</option>
-                    <option value="Fiction">Fiction</option>
-                    <option value="Non-Fiction">Non-Fiction</option>
-                    <option value="Mystery">Mystery</option>
-                    <option value="Biography">Biography</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="imageFile">Book Cover Image</label>
-                <input type="file" id="imageFile" accept="image/*" required>
-            </div>
-            <button type="submit" class="add-btn">Add Book</button>
-        </form>
-    </div>
+    <nav>
+        <button class="nav-btn active" id="addTab">Add Book</button>
+        <button class="nav-btn" id="libraryTab">View Library</button>
+    </nav>
 
-    <!-- Books Display Area -->
-    <div class="library-grid" id="libraryGrid"></div>
+    <section id="addView" class="view active">
+        <div class="form-container">
+            <form id="bookForm">
+                <div class="form-group">
+                    <label for="title">Book Title</label>
+                    <input type="text" id="title" placeholder="e.g. The Hobbit" required>
+                </div>
+                <div class="form-group">
+                    <label for="author">Author</label>
+                    <input type="text" id="author" placeholder="e.g. J.R.R. Tolkien" required>
+                </div>
+                <div class="form-group">
+                    <label for="genre">Genre</label>
+                    <select id="genre" required>
+                        <option value="" disabled selected>Select a genre</option>
+                        <option value="Fantasy">Fantasy</option>
+                        <option value="Sci-Fi">Sci-Fi</option>
+                        <option value="Fiction">Fiction</option>
+                        <option value="Non-Fiction">Non-Fiction</option>
+                        <option value="Mystery">Mystery</option>
+                        <option value="Biography">Biography</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="imageFile">Book Cover Image</label>
+                    <input type="file" id="imageFile" accept="image/*" required>
+                </div>
+                <button type="submit" class="add-btn">Add Book</button>
+            </form>
+        </div>
+    </section>
+
+    <section id="libraryView" class="view">
+        <div class="filter-container">
+            <label for="filterGenre">Filter by Genre</label>
+            <select id="filterGenre">
+                <option value="All">All Genres</option>
+                <option value="Fantasy">Fantasy</option>
+                <option value="Sci-Fi">Sci-Fi</option>
+                <option value="Fiction">Fiction</option>
+                <option value="Non-Fiction">Non-Fiction</option>
+                <option value="Mystery">Mystery</option>
+                <option value="Biography">Biography</option>
+                <option value="Other">Other</option>
+            </select>
+        </div>
+
+        <div class="library-grid" id="libraryGrid"></div>
+    </section>
 
     <script>
+        // DOM Elements
+        const addTab = document.getElementById('addTab');
+        const libraryTab = document.getElementById('libraryTab');
+        const addView = document.getElementById('addView');
+        const libraryView = document.getElementById('libraryView');
+
         const bookForm = document.getElementById('bookForm');
         const libraryGrid = document.getElementById('libraryGrid');
+        const filterGenre = document.getElementById('filterGenre');
 
-        // Retrieve existing books from LocalStorage or start with an empty array
+        // Retrieve existing books from LocalStorage
         let myLibrary = JSON.parse(localStorage.getItem('myLibrary')) || [];
 
-        // Save library array to LocalStorage
+        // Tab Navigation Logic
+        addTab.addEventListener('click', () => {
+            addTab.classList.add('active');
+            libraryTab.classList.remove('active');
+            addView.classList.add('active');
+            libraryView.classList.remove('active');
+        });
+
+        libraryTab.addEventListener('click', () => {
+            libraryTab.classList.add('active');
+            addTab.classList.remove('active');
+            libraryView.classList.add('active');
+            addView.classList.remove('active');
+            renderLibrary(); // Re-render when switching views
+        });
+
         function saveToLocalStorage() {
             localStorage.setItem('myLibrary', JSON.stringify(myLibrary));
         }
 
-        // Render all books on screen
+        // Render Books based on selected Genre Filter
         function renderLibrary() {
-            libraryGrid.innerHTML = ''; // Clear existing cards
+            libraryGrid.innerHTML = '';
+            const selectedGenre = filterGenre.value;
 
-            myLibrary.forEach((book, index) => {
+            // Filter books list
+            const filteredBooks = selectedGenre === 'All' 
+                ? myLibrary 
+                : myLibrary.filter(book => book.genre === selectedGenre);
+
+            if (filteredBooks.length === 0) {
+                libraryGrid.innerHTML = `<p class="empty-message">No books found for this selection.</p>`;
+                return;
+            }
+
+            filteredBooks.forEach((book) => {
+                // Find original index in myLibrary to handle deletion properly
+                const originalIndex = myLibrary.indexOf(book);
+
                 const bookCard = document.createElement('div');
                 bookCard.classList.add('book-card');
 
@@ -230,7 +334,7 @@
                             <div class="book-author">by ${book.author}</div>
                             <span class="book-genre">${book.genre}</span>
                         </div>
-                        <button class="delete-btn" onclick="removeBook(${index})">Remove</button>
+                        <button class="delete-btn" onclick="removeBook(${originalIndex})">Remove</button>
                     </div>
                 `;
 
@@ -238,7 +342,7 @@
             });
         }
 
-        // Add a new book
+        // Handle Add Book
         bookForm.addEventListener('submit', function(event) {
             event.preventDefault();
 
@@ -261,23 +365,25 @@
 
                     myLibrary.push(newBook);
                     saveToLocalStorage();
-                    renderLibrary();
                     bookForm.reset();
+
+                    // Automatically switch to Library view after adding
+                    libraryTab.click();
                 };
 
                 reader.readAsDataURL(file);
             }
         });
 
-        // Remove a book by index
+        // Filter dropdown event listener
+        filterGenre.addEventListener('change', renderLibrary);
+
+        // Remove a book
         function removeBook(index) {
             myLibrary.splice(index, 1);
             saveToLocalStorage();
             renderLibrary();
         }
-
-        // Initial load when page opens
-        renderLibrary();
     </script>
 </body>
 </html>
