@@ -98,7 +98,6 @@
             background: white;
         }
 
-        /* Image Input Options Styling */
         .image-options {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -349,7 +348,6 @@
                     </select>
                 </div>
 
-                <!-- Dual-option Book Cover Section -->
                 <div class="form-group">
                     <label>Book Cover Image</label>
                     <div class="image-options">
@@ -402,7 +400,32 @@
         <div class="library-grid" id="libraryGrid"></div>
     </section>
 
-    <script>
+    <!-- Firebase Cloud Integration -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            deleteDoc, 
+            doc, 
+            onSnapshot 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // PASTE YOUR FIREBASE CONFIG FROM STEP 1 HERE
+        const firebaseConfig = {
+            apiKey: "AIzaSyBOrXnMrnZa3a9fRC4GBFBRztfJE3LBoPQ",
+            authDomain: "books-bfc8f.firebaseapp.com",
+            projectId: "books-bfc8f",
+            storageBucket: "books-bfc8f.firebasestorage.app",
+            messagingSenderId: "1070168041361",
+            appId: "1:1070168041361:web:333d10fa9f2f18cf6ddc30"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const booksRef = collection(db, "books");
+
         const addTab = document.getElementById('addTab');
         const libraryTab = document.getElementById('libraryTab');
         const addView = document.getElementById('addView');
@@ -423,7 +446,7 @@
         const imagePreview = document.getElementById('imagePreview');
 
         let selectedImageData = null;
-        let myLibrary = JSON.parse(localStorage.getItem('myLibrary')) || [];
+        let myLibrary = [];
 
         // Tab Navigation
         addTab.addEventListener('click', () => {
@@ -441,7 +464,15 @@
             renderLibrary();
         });
 
-        // Handle Image Inputs (Upload vs Camera)
+        // Real-time listener: Syncs automatically whenever data changes in cloud
+        onSnapshot(booksRef, (snapshot) => {
+            myLibrary = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            renderLibrary();
+        });
+
         function handleFileSelection(file, sourceCard) {
             if (file) {
                 const reader = new FileReader();
@@ -460,17 +491,13 @@
 
         uploadInput.addEventListener('change', (e) => {
             handleFileSelection(e.target.files[0], uploadCard);
-            cameraInput.value = ''; // Reset camera input
+            cameraInput.value = '';
         });
 
         cameraInput.addEventListener('change', (e) => {
             handleFileSelection(e.target.files[0], cameraCard);
-            uploadInput.value = ''; // Reset upload input
+            uploadInput.value = '';
         });
-
-        function saveToLocalStorage() {
-            localStorage.setItem('myLibrary', JSON.stringify(myLibrary));
-        }
 
         function updateStats() {
             totalCountEl.textContent = `Total Books: ${myLibrary.length}`;
@@ -509,8 +536,6 @@
             }
 
             filteredBooks.forEach((book) => {
-                const originalIndex = myLibrary.indexOf(book);
-
                 const bookCard = document.createElement('div');
                 bookCard.classList.add('book-card');
 
@@ -522,16 +547,20 @@
                             <div class="book-author">by ${book.author}</div>
                             <span class="book-genre">${book.genre}</span>
                         </div>
-                        <button class="delete-btn" onclick="removeBook(${originalIndex})">Remove</button>
+                        <button class="delete-btn" data-id="${book.id}">Remove</button>
                     </div>
                 `;
+
+                bookCard.querySelector('.delete-btn').addEventListener('click', async (e) => {
+                    const docId = e.target.getAttribute('data-id');
+                    await deleteDoc(doc(db, "books", docId));
+                });
 
                 libraryGrid.appendChild(bookCard);
             });
         }
 
-        // Form Submit
-        bookForm.addEventListener('submit', function(event) {
+        bookForm.addEventListener('submit', async function(event) {
             event.preventDefault();
 
             if (!selectedImageData) {
@@ -543,17 +572,14 @@
             const authorInput = document.getElementById('author').value;
             const genreInput = document.getElementById('genre').value;
 
-            const newBook = {
+            // Save book to Firebase cloud database
+            await addDoc(booksRef, {
                 title: titleInput,
                 author: authorInput,
                 genre: genreInput,
                 image: selectedImageData
-            };
+            });
 
-            myLibrary.push(newBook);
-            saveToLocalStorage();
-
-            // Reset form UI
             bookForm.reset();
             selectedImageData = null;
             previewContainer.style.display = 'none';
@@ -565,14 +591,6 @@
 
         searchInput.addEventListener('input', renderLibrary);
         filterGenre.addEventListener('change', renderLibrary);
-
-        function removeBook(index) {
-            myLibrary.splice(index, 1);
-            saveToLocalStorage();
-            renderLibrary();
-        }
-
-        renderLibrary();
     </script>
 </body>
 </html>
