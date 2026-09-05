@@ -453,7 +453,6 @@
         <button class="nav-btn" id="libraryTab">View Library</button>
     </nav>
 
-    <!-- VIEW 1: Add Book -->
     <section id="addView" class="view">
         <div class="form-container">
             <div id="statusMessage" class="status-message"></div>
@@ -510,7 +509,6 @@
         </div>
     </section>
 
-    <!-- VIEW 2: View Library -->
     <section id="libraryView" class="view">
         <div class="stats-container">
             <div class="total-count" id="totalCount">Total Books: 0</div>
@@ -565,7 +563,31 @@
         </div>
     </section>
 
-    <!-- LOGIN MODAL -->
+    <section id="detailsView" class="view">
+        <div class="form-container" style="max-width: 600px;">
+            <button id="backToLibraryBtn" class="nav-btn" style="margin-bottom: 1rem; padding: 0.4rem 0.8rem; font-size: 0.85rem;">← Back to Library</button>
+            <div style="text-align: center; margin-bottom: 1.5rem;">
+                <img id="detailBookImage" src="" alt="Cover" style="max-height: 250px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); margin-bottom: 1rem;">
+                <h2 id="detailBookTitle" style="color: #1a202c;"></h2>
+                <p id="detailBookAuthor" style="color: #4a5568; font-style: italic; margin-bottom: 0.5rem;"></p>
+                <div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.5rem;">
+                    <span id="detailBookGenre" class="book-genre"></span>
+                    <span id="detailBookStatus" class="status-static-badge"></span>
+                </div>
+            </div>
+
+            <div style="margin-top: 1.5rem;">
+                <h3 style="margin-bottom: 0.5rem; font-size: 1.1rem; color: #2d3748;">Description</h3>
+                <p id="detailBookDescriptionText" style="line-height: 1.6; color: #4a5568; white-space: pre-line; display: none;"></p>
+
+                <form id="descriptionForm" style="display: none;">
+                    <textarea id="detailBookDescriptionInput" rows="6" style="width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; font-family: inherit;" placeholder="Write a description or review for this book..."></textarea>
+                    <button type="submit" id="saveDescriptionBtn" class="add-btn" style="margin-top: 0.75rem;">Save Description</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
     <div class="modal-overlay" id="loginModal">
         <div class="modal-card">
             <button class="close-modal" id="closeModal">✕</button>
@@ -628,6 +650,18 @@
         const libraryTab = document.getElementById('libraryTab');
         const addView = document.getElementById('addView');
         const libraryView = document.getElementById('libraryView');
+        const detailsView = document.getElementById('detailsView');
+
+        const backToLibraryBtn = document.getElementById('backToLibraryBtn');
+        const detailBookImage = document.getElementById('detailBookImage');
+        const detailBookTitle = document.getElementById('detailBookTitle');
+        const detailBookAuthor = document.getElementById('detailBookAuthor');
+        const detailBookGenre = document.getElementById('detailBookGenre');
+        const detailBookStatus = document.getElementById('detailBookStatus');
+        const detailBookDescriptionText = document.getElementById('detailBookDescriptionText');
+        const detailBookDescriptionInput = document.getElementById('detailBookDescriptionInput');
+        const descriptionForm = document.getElementById('descriptionForm');
+        const saveDescriptionBtn = document.getElementById('saveDescriptionBtn');
 
         const bookForm = document.getElementById('bookForm');
         const statusMessage = document.getElementById('statusMessage');
@@ -657,6 +691,7 @@
         let myLibrary = [];
         let currentPage = 1;
         let itemsPerPage = 20;
+        let currentSelectedBookId = null;
 
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
@@ -672,7 +707,11 @@
                     switchView('library');
                 }
             }
-            renderLibrary();
+            if (detailsView.classList.contains('active') && currentSelectedBookId) {
+                showBookDetails(currentSelectedBookId);
+            } else {
+                renderLibrary();
+            }
         });
 
         function hideLoginModal() {
@@ -701,6 +740,8 @@
         function switchView(viewName) {
             localStorage.setItem('activeTab', viewName);
 
+            detailsView.classList.remove('active');
+
             if (viewName === 'add' && currentUser) {
                 addTab.classList.add('active');
                 libraryTab.classList.remove('active');
@@ -721,12 +762,74 @@
         addTab.addEventListener('click', () => switchView('add'));
         libraryTab.addEventListener('click', () => switchView('library'));
 
+        backToLibraryBtn.addEventListener('click', () => switchView('library'));
+
+        function showBookDetails(bookId) {
+            const book = myLibrary.find(b => b.id === bookId);
+            if (!book) return;
+
+            currentSelectedBookId = bookId;
+
+            detailBookImage.src = book.image;
+            detailBookTitle.textContent = book.title;
+            detailBookAuthor.textContent = `by ${book.author}`;
+            detailBookGenre.textContent = book.genre;
+            
+            const status = book.status || 'To be Read';
+            detailBookStatus.textContent = status === 'Read' ? '✓ Read' : '📖 To be Read';
+            detailBookStatus.className = `status-static-badge ${status === 'Read' ? 'read' : 'tbr'}`;
+
+            const description = book.description || 'No description available for this book yet.';
+
+            if (currentUser) {
+                descriptionForm.style.display = 'block';
+                detailBookDescriptionText.style.display = 'none';
+                detailBookDescriptionInput.value = book.description || '';
+            } else {
+                descriptionForm.style.display = 'none';
+                detailBookDescriptionText.style.display = 'block';
+                detailBookDescriptionText.textContent = description;
+            }
+
+            addView.classList.remove('active');
+            libraryView.classList.remove('active');
+            detailsView.classList.add('active');
+            addTab.classList.remove('active');
+            libraryTab.classList.remove('active');
+        }
+
+        descriptionForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentSelectedBookId || !currentUser) return;
+
+            saveDescriptionBtn.disabled = true;
+            saveDescriptionBtn.textContent = 'Saving...';
+
+            try {
+                const newDescription = detailBookDescriptionInput.value.trim();
+                await updateDoc(doc(db, "books", currentSelectedBookId), {
+                    description: newDescription
+                });
+                alert('Description saved successfully!');
+            } catch (err) {
+                console.error("Error saving description:", err);
+                alert('Failed to save description. Please try again.');
+            } finally {
+                saveDescriptionBtn.disabled = false;
+                saveDescriptionBtn.textContent = 'Save Description';
+            }
+        });
+
         onSnapshot(booksRef, (snapshot) => {
             myLibrary = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
-            renderLibrary();
+            if (detailsView.classList.contains('active') && currentSelectedBookId) {
+                showBookDetails(currentSelectedBookId);
+            } else {
+                renderLibrary();
+            }
         }, (error) => {
             console.error("Firestore snapshot error:", error);
         });
@@ -874,10 +977,10 @@
                     : '';
 
                 bookCard.innerHTML = `
-                    <img src="${book.image}" alt="${book.title}">
+                    <img src="${book.image}" alt="${book.title}" class="clickable-cover" style="cursor: pointer;">
                     <div class="book-info">
                         <div>
-                            <div class="book-title">${book.title}</div>
+                            <div class="book-title clickable-title" style="cursor: pointer;">${book.title}</div>
                             <div class="book-author">by ${book.author}</div>
                             <div class="badges-wrapper">
                                 <span class="book-genre">${book.genre}</span>
@@ -888,8 +991,12 @@
                     </div>
                 `;
 
+                bookCard.querySelector('.clickable-cover').addEventListener('click', () => showBookDetails(book.id));
+                bookCard.querySelector('.clickable-title').addEventListener('click', () => showBookDetails(book.id));
+
                 if (currentUser) {
                     bookCard.querySelector('.status-toggle-btn').addEventListener('click', async (e) => {
+                        e.stopPropagation();
                         const docId = e.currentTarget.getAttribute('data-id');
                         const currentStatus = e.currentTarget.getAttribute('data-status');
                         const newStatus = currentStatus === 'Read' ? 'To be Read' : 'Read';
@@ -902,6 +1009,7 @@
                     });
 
                     bookCard.querySelector('.delete-btn').addEventListener('click', async (e) => {
+                        e.stopPropagation();
                         const docId = e.target.getAttribute('data-id');
                         const isConfirmed = confirm("Are you sure you want to remove this book?");
                         
@@ -977,7 +1085,8 @@
                     author: authorInput,
                     genre: genreInput,
                     status: statusInput,
-                    image: selectedImageData
+                    image: selectedImageData,
+                    description: ""
                 });
 
                 statusMessage.textContent = "Book successfully added to your library.";
