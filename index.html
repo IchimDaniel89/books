@@ -89,7 +89,6 @@
         }
 
         input[type="text"],
-        input[type="file"],
         select {
             width: 100%;
             padding: 0.75rem;
@@ -97,6 +96,57 @@
             border-radius: 6px;
             font-size: 1rem;
             background: white;
+        }
+
+        /* Image Input Options Styling */
+        .image-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+        }
+
+        .image-option-card {
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+            padding: 0.75rem 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            background: #f7fafc;
+            transition: all 0.2s ease;
+        }
+
+        .image-option-card:hover {
+            border-color: #2bc48a;
+            background: #f0fff4;
+        }
+
+        .image-option-card.selected {
+            border-color: #2bc48a;
+            background: #e6fffa;
+            border-style: solid;
+        }
+
+        .image-option-card input[type="file"] {
+            display: none;
+        }
+
+        .image-option-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .preview-container {
+            margin-top: 0.75rem;
+            text-align: center;
+            display: none;
+        }
+
+        .preview-container img {
+            max-height: 120px;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
         }
 
         button.add-btn {
@@ -110,6 +160,7 @@
             font-weight: bold;
             cursor: pointer;
             transition: background 0.2s;
+            margin-top: 0.5rem;
         }
 
         button.add-btn:hover {
@@ -297,10 +348,25 @@
                         <option value="Other">Other</option>
                     </select>
                 </div>
+
+                <!-- Dual-option Book Cover Section -->
                 <div class="form-group">
-                    <label for="imageFile">Book Cover Image</label>
-                    <input type="file" id="imageFile" accept="image/*" required>
+                    <label>Book Cover Image</label>
+                    <div class="image-options">
+                        <label class="image-option-card" id="uploadCard">
+                            <span class="image-option-title">📁 Upload Photo</span>
+                            <input type="file" id="uploadInput" accept="image/*">
+                        </label>
+                        <label class="image-option-card" id="cameraCard">
+                            <span class="image-option-title">📷 Take Photo</span>
+                            <input type="file" id="cameraInput" accept="image/*" capture="environment">
+                        </label>
+                    </div>
+                    <div class="preview-container" id="previewContainer">
+                        <img id="imagePreview" src="" alt="Cover Preview">
+                    </div>
                 </div>
+
                 <button type="submit" class="add-btn">Add Book</button>
             </form>
         </div>
@@ -349,9 +415,17 @@
         const totalCountEl = document.getElementById('totalCount');
         const genreStatsEl = document.getElementById('genreStats');
 
-        // Reading from LocalStorage
+        const uploadInput = document.getElementById('uploadInput');
+        const cameraInput = document.getElementById('cameraInput');
+        const uploadCard = document.getElementById('uploadCard');
+        const cameraCard = document.getElementById('cameraCard');
+        const previewContainer = document.getElementById('previewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+
+        let selectedImageData = null;
         let myLibrary = JSON.parse(localStorage.getItem('myLibrary')) || [];
 
+        // Tab Navigation
         addTab.addEventListener('click', () => {
             addTab.classList.add('active');
             libraryTab.classList.remove('active');
@@ -365,6 +439,33 @@
             libraryView.classList.add('active');
             addView.classList.remove('active');
             renderLibrary();
+        });
+
+        // Handle Image Inputs (Upload vs Camera)
+        function handleFileSelection(file, sourceCard) {
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    selectedImageData = e.target.result;
+                    imagePreview.src = selectedImageData;
+                    previewContainer.style.display = 'block';
+
+                    uploadCard.classList.remove('selected');
+                    cameraCard.classList.remove('selected');
+                    sourceCard.classList.add('selected');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        uploadInput.addEventListener('change', (e) => {
+            handleFileSelection(e.target.files[0], uploadCard);
+            cameraInput.value = ''; // Reset camera input
+        });
+
+        cameraInput.addEventListener('change', (e) => {
+            handleFileSelection(e.target.files[0], cameraCard);
+            uploadInput.value = ''; // Reset upload input
         });
 
         function saveToLocalStorage() {
@@ -429,34 +530,37 @@
             });
         }
 
+        // Form Submit
         bookForm.addEventListener('submit', function(event) {
             event.preventDefault();
+
+            if (!selectedImageData) {
+                alert('Please select an image by uploading a photo or taking one with your camera.');
+                return;
+            }
 
             const titleInput = document.getElementById('title').value;
             const authorInput = document.getElementById('author').value;
             const genreInput = document.getElementById('genre').value;
-            const imageFileInput = document.getElementById('imageFile');
-            const file = imageFileInput.files[0];
 
-            if (file) {
-                const reader = new FileReader();
+            const newBook = {
+                title: titleInput,
+                author: authorInput,
+                genre: genreInput,
+                image: selectedImageData
+            };
 
-                reader.onload = function(e) {
-                    const newBook = {
-                        title: titleInput,
-                        author: authorInput,
-                        genre: genreInput,
-                        image: e.target.result
-                    };
+            myLibrary.push(newBook);
+            saveToLocalStorage();
 
-                    myLibrary.push(newBook);
-                    saveToLocalStorage();
-                    bookForm.reset();
-                    libraryTab.click();
-                };
+            // Reset form UI
+            bookForm.reset();
+            selectedImageData = null;
+            previewContainer.style.display = 'none';
+            uploadCard.classList.remove('selected');
+            cameraCard.classList.remove('selected');
 
-                reader.readAsDataURL(file);
-            }
+            libraryTab.click();
         });
 
         searchInput.addEventListener('input', renderLibrary);
@@ -468,7 +572,6 @@
             renderLibrary();
         }
 
-        // Render initially on load
         renderLibrary();
     </script>
 </body>
