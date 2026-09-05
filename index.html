@@ -298,7 +298,7 @@
             justify-content: center;
             gap: 0.4rem;
             flex-wrap: wrap;
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
         }
 
         .book-genre {
@@ -311,29 +311,47 @@
             text-transform: uppercase;
         }
 
-        .status-badge {
+        .status-toggle-btn {
             font-size: 0.75rem;
             font-weight: 700;
-            padding: 0.25rem 0.5rem;
+            padding: 0.3rem 0.6rem;
             border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
 
-        .status-badge.read {
+        .status-toggle-btn.read {
             background-color: #c6f6d5;
             color: #22543d;
         }
 
-        .status-badge.tbr {
+        .status-toggle-btn.read:hover {
+            background-color: #9ae6b4;
+        }
+
+        .status-toggle-btn.tbr {
             background-color: #feebc8;
             color: #744210;
         }
 
+        .status-toggle-btn.tbr:hover {
+            background-color: #fbd38d;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
         .delete-btn {
+            width: 100%;
             background-color: #e53e3e;
             color: white;
             border: none;
             padding: 0.5rem;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 0.85rem;
             font-weight: 600;
@@ -471,6 +489,7 @@
             getFirestore, 
             collection, 
             addDoc, 
+            updateDoc,
             deleteDoc, 
             doc, 
             onSnapshot 
@@ -659,6 +678,7 @@
 
                 const bookStatus = book.status || 'To be Read';
                 const statusClass = bookStatus === 'Read' ? 'read' : 'tbr';
+                const statusIcon = bookStatus === 'Read' ? '✓ Read' : '📖 To be Read';
 
                 bookCard.innerHTML = `
                     <img src="${book.image}" alt="${book.title}">
@@ -668,13 +688,33 @@
                             <div class="book-author">by ${book.author}</div>
                             <div class="badges-wrapper">
                                 <span class="book-genre">${book.genre}</span>
-                                <span class="status-badge ${statusClass}">${bookStatus}</span>
+                                <button class="status-toggle-btn ${statusClass}" data-id="${book.id}" data-status="${bookStatus}">
+                                    ${statusIcon}
+                                </button>
                             </div>
                         </div>
-                        <button class="delete-btn" data-id="${book.id}">Remove</button>
+                        <div class="card-actions">
+                            <button class="delete-btn" data-id="${book.id}">Remove</button>
+                        </div>
                     </div>
                 `;
 
+                // Toggle status on click
+                bookCard.querySelector('.status-toggle-btn').addEventListener('click', async (e) => {
+                    const docId = e.currentTarget.getAttribute('data-id');
+                    const currentStatus = e.currentTarget.getAttribute('data-status');
+                    const newStatus = currentStatus === 'Read' ? 'To be Read' : 'Read';
+
+                    try {
+                        await updateDoc(doc(db, "books", docId), {
+                            status: newStatus
+                        });
+                    } catch (err) {
+                        console.error("Error updating status:", err);
+                    }
+                });
+
+                // Remove book on click
                 bookCard.querySelector('.delete-btn').addEventListener('click', async (e) => {
                     const docId = e.target.getAttribute('data-id');
                     await deleteDoc(doc(db, "books", docId));
