@@ -629,8 +629,19 @@
             renderLibrary();
         });
 
+        function hideLoginModal() {
+            loginModal.classList.remove('active');
+            loginForm.reset();
+        }
+
         loginBtn.addEventListener('click', () => loginModal.classList.add('active'));
-        closeModal.addEventListener('click', () => loginModal.classList.remove('active'));
+        closeModal.addEventListener('click', hideLoginModal);
+
+        loginModal.addEventListener('click', (e) => {
+            if (e.target === loginModal) {
+                hideLoginModal();
+            }
+        });
 
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -639,8 +650,7 @@
 
             try {
                 await signInWithEmailAndPassword(auth, email, password);
-                loginModal.classList.remove('active');
-                loginForm.reset();
+                hideLoginModal();
             } catch (err) {
                 alert("Login failed. Check your email and password.");
             }
