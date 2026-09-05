@@ -844,8 +844,18 @@
 
                     bookCard.querySelector('.delete-btn').addEventListener('click', async (e) => {
                         const docId = e.target.getAttribute('data-id');
-                        await deleteDoc(doc(db, "books", docId));
+                        const isConfirmed = confirm("Are you sure you want to remove this book?");
+    
+                        if (isConfirmed) {
+                            try {
+                                await deleteDoc(doc(db, "books", docId));
+                            } catch (err) {
+                                console.error("Error removing book:", err);
+                                alert("Failed to delete the book. Please try again.");
+                            }
+                        }
                     });
+
                 }
 
                 libraryGrid.appendChild(bookCard);
