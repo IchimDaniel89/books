@@ -76,9 +76,17 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        .nav-btn.active, .nav-btn:hover {
+        .nav-btn.active, .nav-btn:hover:not(:disabled) {
             background-color: #2bc48a;
             color: white;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: #ccc;
+            color: #888;
+            background-color: rgba(255, 255, 255, 0.6);
         }
 
         .view {
@@ -413,6 +421,21 @@
             font-size: 1.2rem;
             cursor: pointer;
         }
+
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .page-info {
+            font-weight: 600;
+            color: #ffffff;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+        }
     </style>
 </head>
 <body>
@@ -430,6 +453,7 @@
         <button class="nav-btn" id="libraryTab">View Library</button>
     </nav>
 
+    <!-- VIEW 1: Add Book -->
     <section id="addView" class="view">
         <div class="form-container">
             <div id="statusMessage" class="status-message"></div>
@@ -486,6 +510,7 @@
         </div>
     </section>
 
+    <!-- VIEW 2: View Library -->
     <section id="libraryView" class="view">
         <div class="stats-container">
             <div class="total-count" id="totalCount">Total Books: 0</div>
@@ -522,11 +547,25 @@
                     <option value="Other">Other</option>
                 </select>
             </div>
+            <div>
+                <label for="itemsPerPage">Books Per Page</label>
+                <select id="itemsPerPage">
+                    <option value="20" selected>20 per page</option>
+                    <option value="50">50 per page</option>
+                </select>
+            </div>
         </div>
 
         <div class="library-grid" id="libraryGrid"></div>
+
+        <div class="pagination-container">
+            <button id="prevPageBtn" class="nav-btn" style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">Previous</button>
+            <span id="pageInfo" class="page-info">Page 1 of 1</span>
+            <button id="nextPageBtn" class="nav-btn" style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">Next</button>
+        </div>
     </section>
 
+    <!-- LOGIN MODAL -->
     <div class="modal-overlay" id="loginModal">
         <div class="modal-card">
             <button class="close-modal" id="closeModal">✕</button>
@@ -602,6 +641,11 @@
         const tbrCountEl = document.getElementById('tbrCount');
         const genreStatsEl = document.getElementById('genreStats');
 
+        const itemsPerPageSelect = document.getElementById('itemsPerPage');
+        const prevPageBtn = document.getElementById('prevPageBtn');
+        const nextPageBtn = document.getElementById('nextPageBtn');
+        const pageInfo = document.getElementById('pageInfo');
+
         const uploadInput = document.getElementById('uploadInput');
         const cameraInput = document.getElementById('cameraInput');
         const uploadCard = document.getElementById('uploadCard');
@@ -611,6 +655,8 @@
 
         let selectedImageData = null;
         let myLibrary = [];
+        let currentPage = 1;
+        let itemsPerPage = 20;
 
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
@@ -628,16 +674,15 @@
             }
             renderLibrary();
         });
-        // Function to hide modal and clear input fields
+
         function hideLoginModal() {
             loginModal.classList.remove('active');
             loginForm.reset();
         }
-        // Open modal on button click
+
         loginBtn.addEventListener('click', () => loginModal.classList.add('active'));
-        // Close modal ONLY when clicking the 'X' button
         closeModal.addEventListener('click', hideLoginModal);
-        // Submit form and sign in
+
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value;
@@ -795,10 +840,24 @@
 
             if (filteredBooks.length === 0) {
                 libraryGrid.innerHTML = `<p class="empty-message">No books match your criteria.</p>`;
+                pageInfo.textContent = `Page 0 of 0`;
+                prevPageBtn.disabled = true;
+                nextPageBtn.disabled = true;
                 return;
             }
 
-            filteredBooks.forEach((book) => {
+            const totalPages = Math.ceil(filteredBooks.length / itemsPerPage);
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const paginatedBooks = filteredBooks.slice(startIndex, endIndex);
+
+            pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+            prevPageBtn.disabled = currentPage === 1;
+            nextPageBtn.disabled = currentPage === totalPages;
+
+            paginatedBooks.forEach((book) => {
                 const bookCard = document.createElement('div');
                 bookCard.classList.add('book-card');
 
@@ -845,7 +904,7 @@
                     bookCard.querySelector('.delete-btn').addEventListener('click', async (e) => {
                         const docId = e.target.getAttribute('data-id');
                         const isConfirmed = confirm("Are you sure you want to remove this book?");
-    
+                        
                         if (isConfirmed) {
                             try {
                                 await deleteDoc(doc(db, "books", docId));
@@ -855,12 +914,46 @@
                             }
                         }
                     });
-
                 }
 
                 libraryGrid.appendChild(bookCard);
             });
         }
+
+        itemsPerPageSelect.addEventListener('change', (e) => {
+            itemsPerPage = parseInt(e.target.value, 10);
+            currentPage = 1;
+            renderLibrary();
+        });
+
+        prevPageBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderLibrary();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
+
+        nextPageBtn.addEventListener('click', () => {
+            const selectedGenre = filterGenre.value;
+            const selectedStatus = filterStatus.value;
+            const query = searchInput.value.toLowerCase().trim();
+
+            const filteredBooks = myLibrary.filter(book => {
+                const bookStatus = book.status || 'To be Read';
+                const matchesGenre = selectedGenre === 'All' || book.genre === selectedGenre;
+                const matchesStatus = selectedStatus === 'All' || bookStatus === selectedStatus;
+                const matchesSearch = book.title.toLowerCase().includes(query) || book.author.toLowerCase().includes(query);
+                return matchesGenre && matchesStatus && matchesSearch;
+            });
+
+            const totalPages = Math.ceil(filteredBooks.length / itemsPerPage) || 1;
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderLibrary();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
 
         bookForm.addEventListener('submit', async function(event) {
             event.preventDefault();
@@ -909,9 +1002,9 @@
             }
         });
 
-        searchInput.addEventListener('input', renderLibrary);
-        filterGenre.addEventListener('change', renderLibrary);
-        filterStatus.addEventListener('change', renderLibrary);
+        searchInput.addEventListener('input', () => { currentPage = 1; renderLibrary(); });
+        filterGenre.addEventListener('change', () => { currentPage = 1; renderLibrary(); });
+        filterStatus.addEventListener('change', () => { currentPage = 1; renderLibrary(); });
     </script>
 </body>
 </html>
