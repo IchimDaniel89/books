@@ -155,7 +155,6 @@
             font-weight: 700;
         }
 
-        /* Combined Controls Section */
         .controls-container {
             max-width: 500px;
             margin: 0 auto 2rem auto;
@@ -314,7 +313,6 @@
             <div class="genre-stats" id="genreStats"></div>
         </div>
 
-        <!-- Controls: Search + Genre Filter -->
         <div class="controls-container">
             <div>
                 <label for="searchInput">Search Collection</label>
@@ -338,32 +336,7 @@
         <div class="library-grid" id="libraryGrid"></div>
     </section>
 
-    <!-- Firebase SDK Modules -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { 
-            getFirestore, 
-            collection, 
-            addDoc, 
-            deleteDoc, 
-            doc, 
-            onSnapshot 
-        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        // REPLACE WITH YOUR FIREBASE CONFIG
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const booksRef = collection(db, "books");
-
+    <script>
         const addTab = document.getElementById('addTab');
         const libraryTab = document.getElementById('libraryTab');
         const addView = document.getElementById('addView');
@@ -376,7 +349,8 @@
         const totalCountEl = document.getElementById('totalCount');
         const genreStatsEl = document.getElementById('genreStats');
 
-        let myLibrary = [];
+        // Reading from LocalStorage
+        let myLibrary = JSON.parse(localStorage.getItem('myLibrary')) || [];
 
         addTab.addEventListener('click', () => {
             addTab.classList.add('active');
@@ -393,13 +367,9 @@
             renderLibrary();
         });
 
-        onSnapshot(booksRef, (snapshot) => {
-            myLibrary = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            renderLibrary();
-        });
+        function saveToLocalStorage() {
+            localStorage.setItem('myLibrary', JSON.stringify(myLibrary));
+        }
 
         function updateStats() {
             totalCountEl.textContent = `Total Books: ${myLibrary.length}`;
@@ -421,11 +391,10 @@
         function renderLibrary() {
             updateStats();
             libraryGrid.innerHTML = '';
-            
+
             const selectedGenre = filterGenre.value;
             const query = searchInput.value.toLowerCase().trim();
 
-            // Filter by both genre selection and search text match
             const filteredBooks = myLibrary.filter(book => {
                 const matchesGenre = selectedGenre === 'All' || book.genre === selectedGenre;
                 const matchesSearch = book.title.toLowerCase().includes(query) || 
@@ -439,6 +408,8 @@
             }
 
             filteredBooks.forEach((book) => {
+                const originalIndex = myLibrary.indexOf(book);
+
                 const bookCard = document.createElement('div');
                 bookCard.classList.add('book-card');
 
@@ -450,14 +421,9 @@
                             <div class="book-author">by ${book.author}</div>
                             <span class="book-genre">${book.genre}</span>
                         </div>
-                        <button class="delete-btn" data-id="${book.id}">Remove</button>
+                        <button class="delete-btn" onclick="removeBook(${originalIndex})">Remove</button>
                     </div>
                 `;
-
-                bookCard.querySelector('.delete-btn').addEventListener('click', async (e) => {
-                    const docId = e.target.getAttribute('data-id');
-                    await deleteDoc(doc(db, "books", docId));
-                });
 
                 libraryGrid.appendChild(bookCard);
             });
@@ -475,14 +441,16 @@
             if (file) {
                 const reader = new FileReader();
 
-                reader.onload = async function(e) {
-                    await addDoc(booksRef, {
+                reader.onload = function(e) {
+                    const newBook = {
                         title: titleInput,
                         author: authorInput,
                         genre: genreInput,
                         image: e.target.result
-                    });
+                    };
 
+                    myLibrary.push(newBook);
+                    saveToLocalStorage();
                     bookForm.reset();
                     libraryTab.click();
                 };
@@ -491,9 +459,17 @@
             }
         });
 
-        // Event listeners for live filtering
         searchInput.addEventListener('input', renderLibrary);
         filterGenre.addEventListener('change', renderLibrary);
+
+        function removeBook(index) {
+            myLibrary.splice(index, 1);
+            saveToLocalStorage();
+            renderLibrary();
+        }
+
+        // Render initially on load
+        renderLibrary();
     </script>
 </body>
 </html>
