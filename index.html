@@ -197,6 +197,15 @@
             text-align: center;
         }
 
+        .reading-summary {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
         .genre-stats {
             display: flex;
             flex-wrap: wrap;
@@ -284,17 +293,39 @@
             font-style: italic;
         }
 
+        .badges-wrapper {
+            display: flex;
+            justify-content: center;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
         .book-genre {
-            display: inline-block;
-            align-self: center;
             font-size: 0.75rem;
             font-weight: 600;
             background-color: #e2e8f0;
             color: #2d3748;
             padding: 0.25rem 0.5rem;
             border-radius: 12px;
-            margin-bottom: 1rem;
             text-transform: uppercase;
+        }
+
+        .status-badge {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+        }
+
+        .status-badge.read {
+            background-color: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-badge.tbr {
+            background-color: #feebc8;
+            color: #744210;
         }
 
         .delete-btn {
@@ -362,6 +393,13 @@
                         <option value="Other">Other</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="readingStatus">Reading Status</label>
+                    <select id="readingStatus" required>
+                        <option value="To be Read" selected>To be Read</option>
+                        <option value="Read">Read</option>
+                    </select>
+                </div>
 
                 <div class="form-group">
                     <label>Book Cover Image</label>
@@ -389,6 +427,10 @@
     <section id="libraryView" class="view">
         <div class="stats-container">
             <div class="total-count" id="totalCount">Total Books: 0</div>
+            <div class="reading-summary" id="readingSummary">
+                <div>Read: <span id="readCount">0</span></div>
+                <div>To be Read: <span id="tbrCount">0</span></div>
+            </div>
             <div class="genre-stats" id="genreStats"></div>
         </div>
 
@@ -396,6 +438,14 @@
             <div>
                 <label for="searchInput">Search Collection</label>
                 <input type="text" id="searchInput" placeholder="Search title or author...">
+            </div>
+            <div>
+                <label for="filterStatus">Filter by Status</label>
+                <select id="filterStatus">
+                    <option value="All">All Statuses</option>
+                    <option value="To be Read">To be Read</option>
+                    <option value="Read">Read</option>
+                </select>
             </div>
             <div>
                 <label for="filterGenre">Filter by Genre</label>
@@ -449,8 +499,11 @@
         const submitBtn = document.getElementById('submitBtn');
         const libraryGrid = document.getElementById('libraryGrid');
         const filterGenre = document.getElementById('filterGenre');
+        const filterStatus = document.getElementById('filterStatus');
         const searchInput = document.getElementById('searchInput');
         const totalCountEl = document.getElementById('totalCount');
+        const readCountEl = document.getElementById('readCount');
+        const tbrCountEl = document.getElementById('tbrCount');
         const genreStatsEl = document.getElementById('genreStats');
 
         const uploadInput = document.getElementById('uploadInput');
@@ -488,7 +541,6 @@
             console.error("Firestore snapshot error:", error);
         });
 
-        // Resize and compress image to fit within Firestore limit
         function compressAndResizeImage(file, maxWidth, maxHeight, quality) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
@@ -526,7 +578,6 @@
         async function handleFileSelection(file, sourceCard) {
             if (file) {
                 try {
-                    // Compress to max 600x600 px at 70% quality (~30-60KB)
                     selectedImageData = await compressAndResizeImage(file, 600, 600, 0.7);
                     imagePreview.src = selectedImageData;
                     previewContainer.style.display = 'block';
@@ -553,10 +604,23 @@
         function updateStats() {
             totalCountEl.textContent = `Total Books: ${myLibrary.length}`;
 
+            let readCount = 0;
+            let tbrCount = 0;
             const counts = {};
+
             myLibrary.forEach(book => {
                 counts[book.genre] = (counts[book.genre] || 0) + 1;
+                
+                const status = book.status || 'To be Read';
+                if (status === 'Read') {
+                    readCount++;
+                } else {
+                    tbrCount++;
+                }
             });
+
+            readCountEl.textContent = readCount;
+            tbrCountEl.textContent = tbrCount;
 
             genreStatsEl.innerHTML = '';
             for (const [genre, count] of Object.entries(counts)) {
@@ -572,13 +636,16 @@
             libraryGrid.innerHTML = '';
 
             const selectedGenre = filterGenre.value;
+            const selectedStatus = filterStatus.value;
             const query = searchInput.value.toLowerCase().trim();
 
             const filteredBooks = myLibrary.filter(book => {
+                const bookStatus = book.status || 'To be Read';
                 const matchesGenre = selectedGenre === 'All' || book.genre === selectedGenre;
+                const matchesStatus = selectedStatus === 'All' || bookStatus === selectedStatus;
                 const matchesSearch = book.title.toLowerCase().includes(query) || 
                                       book.author.toLowerCase().includes(query);
-                return matchesGenre && matchesSearch;
+                return matchesGenre && matchesStatus && matchesSearch;
             });
 
             if (filteredBooks.length === 0) {
@@ -590,13 +657,19 @@
                 const bookCard = document.createElement('div');
                 bookCard.classList.add('book-card');
 
+                const bookStatus = book.status || 'To be Read';
+                const statusClass = bookStatus === 'Read' ? 'read' : 'tbr';
+
                 bookCard.innerHTML = `
                     <img src="${book.image}" alt="${book.title}">
                     <div class="book-info">
                         <div>
                             <div class="book-title">${book.title}</div>
                             <div class="book-author">by ${book.author}</div>
-                            <span class="book-genre">${book.genre}</span>
+                            <div class="badges-wrapper">
+                                <span class="book-genre">${book.genre}</span>
+                                <span class="status-badge ${statusClass}">${bookStatus}</span>
+                            </div>
                         </div>
                         <button class="delete-btn" data-id="${book.id}">Remove</button>
                     </div>
@@ -626,11 +699,13 @@
                 const titleInput = document.getElementById('title').value;
                 const authorInput = document.getElementById('author').value;
                 const genreInput = document.getElementById('genre').value;
+                const statusInput = document.getElementById('readingStatus').value;
 
                 await addDoc(booksRef, {
                     title: titleInput,
                     author: authorInput,
                     genre: genreInput,
+                    status: statusInput,
                     image: selectedImageData
                 });
 
@@ -658,6 +733,7 @@
 
         searchInput.addEventListener('input', renderLibrary);
         filterGenre.addEventListener('change', renderLibrary);
+        filterStatus.addEventListener('change', renderLibrary);
     </script>
 </body>
 </html>
