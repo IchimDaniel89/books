@@ -628,21 +628,16 @@
             }
             renderLibrary();
         });
-
+        // Function to hide modal and clear input fields
         function hideLoginModal() {
             loginModal.classList.remove('active');
             loginForm.reset();
         }
-
+        // Open modal on button click
         loginBtn.addEventListener('click', () => loginModal.classList.add('active'));
+        // Close modal ONLY when clicking the 'X' button
         closeModal.addEventListener('click', hideLoginModal);
-
-        loginModal.addEventListener('click', (e) => {
-            if (e.target === loginModal) {
-                hideLoginModal();
-            }
-        });
-
+        // Submit form and sign in
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value;
