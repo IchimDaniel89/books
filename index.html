@@ -380,12 +380,12 @@
     </header>
 
     <nav>
-        <button class="nav-btn active" id="addTab">Add Book</button>
+        <button class="nav-btn" id="addTab">Add Book</button>
         <button class="nav-btn" id="libraryTab">View Library</button>
     </nav>
 
     <!-- VIEW 1: Add Book -->
-    <section id="addView" class="view active">
+    <section id="addView" class="view">
         <div class="form-container">
             <div id="statusMessage" class="status-message"></div>
 
@@ -535,20 +535,29 @@
         let selectedImageData = null;
         let myLibrary = [];
 
-        addTab.addEventListener('click', () => {
-            addTab.classList.add('active');
-            libraryTab.classList.remove('active');
-            addView.classList.add('active');
-            libraryView.classList.remove('active');
-        });
+        function switchView(viewName) {
+            localStorage.setItem('activeTab', viewName);
 
-        libraryTab.addEventListener('click', () => {
-            libraryTab.classList.add('active');
-            addTab.classList.remove('active');
-            libraryView.classList.add('active');
-            addView.classList.remove('active');
-            renderLibrary();
-        });
+            if (viewName === 'library') {
+                libraryTab.classList.add('active');
+                addTab.classList.remove('active');
+                libraryView.classList.add('active');
+                addView.classList.remove('active');
+                renderLibrary();
+            } else {
+                addTab.classList.add('active');
+                libraryTab.classList.remove('active');
+                addView.classList.add('active');
+                libraryView.classList.remove('active');
+            }
+        }
+
+        // Load the stored view or default to 'add'
+        const initialView = localStorage.getItem('activeTab') || 'add';
+        switchView(initialView);
+
+        addTab.addEventListener('click', () => switchView('add'));
+        libraryTab.addEventListener('click', () => switchView('library'));
 
         onSnapshot(booksRef, (snapshot) => {
             myLibrary = snapshot.docs.map(doc => ({
@@ -699,7 +708,6 @@
                     </div>
                 `;
 
-                // Toggle status on click
                 bookCard.querySelector('.status-toggle-btn').addEventListener('click', async (e) => {
                     const docId = e.currentTarget.getAttribute('data-id');
                     const currentStatus = e.currentTarget.getAttribute('data-status');
@@ -714,7 +722,6 @@
                     }
                 });
 
-                // Remove book on click
                 bookCard.querySelector('.delete-btn').addEventListener('click', async (e) => {
                     const docId = e.target.getAttribute('data-id');
                     await deleteDoc(doc(db, "books", docId));
