@@ -77,6 +77,20 @@
             backdrop-filter: blur(4px);
         }
 
+        /* Success Message Banner */
+        .status-message {
+            display: none;
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
         .form-group {
             margin-bottom: 1rem;
         }
@@ -325,6 +339,8 @@
     <!-- VIEW 1: Add Book -->
     <section id="addView" class="view active">
         <div class="form-container">
+            <div id="statusMessage" class="status-message"></div>
+
             <form id="bookForm">
                 <div class="form-group">
                     <label for="title">Book Title</label>
@@ -400,7 +416,7 @@
         <div class="library-grid" id="libraryGrid"></div>
     </section>
 
-    <!-- Firebase Cloud Integration -->
+    <!-- JavaScript Code Starts Here -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { 
@@ -412,7 +428,6 @@
             onSnapshot 
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // PASTE YOUR FIREBASE CONFIG FROM STEP 1 HERE
         const firebaseConfig = {
             apiKey: "AIzaSyBOrXnMrnZa3a9fRC4GBFBRztfJE3LBoPQ",
             authDomain: "books-bfc8f.firebaseapp.com",
@@ -432,6 +447,7 @@
         const libraryView = document.getElementById('libraryView');
 
         const bookForm = document.getElementById('bookForm');
+        const statusMessage = document.getElementById('statusMessage');
         const libraryGrid = document.getElementById('libraryGrid');
         const filterGenre = document.getElementById('filterGenre');
         const searchInput = document.getElementById('searchInput');
@@ -464,7 +480,7 @@
             renderLibrary();
         });
 
-        // Real-time listener: Syncs automatically whenever data changes in cloud
+        // Real-time Firebase Sync
         onSnapshot(booksRef, (snapshot) => {
             myLibrary = snapshot.docs.map(doc => ({
                 id: doc.id,
@@ -560,6 +576,7 @@
             });
         }
 
+        // Form Submit Handler
         bookForm.addEventListener('submit', async function(event) {
             event.preventDefault();
 
@@ -572,7 +589,7 @@
             const authorInput = document.getElementById('author').value;
             const genreInput = document.getElementById('genre').value;
 
-            // Save book to Firebase cloud database
+            // Save to Firebase
             await addDoc(booksRef, {
                 title: titleInput,
                 author: authorInput,
@@ -580,13 +597,21 @@
                 image: selectedImageData
             });
 
+            // Show Success Banner
+            statusMessage.textContent = "Book successfully added to your library.";
+            statusMessage.style.display = 'block';
+
+            // Reset form fields and selection
             bookForm.reset();
             selectedImageData = null;
             previewContainer.style.display = 'none';
             uploadCard.classList.remove('selected');
             cameraCard.classList.remove('selected');
 
-            libraryTab.click();
+            // Hide success message after 4 seconds
+            setTimeout(() => {
+                statusMessage.style.display = 'none';
+            }, 4000);
         });
 
         searchInput.addEventListener('input', renderLibrary);
