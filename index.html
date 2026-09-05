@@ -13,7 +13,6 @@
 
         body {
             font-family: system-ui, -apple-system, sans-serif;
-            /* Uses your local image file with a subtle dark overlay for readability */
             background-image: linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.25)), 
                               url('background.jpg');
             background-size: cover;
@@ -35,7 +34,6 @@
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
         }
 
-        /* Navigation Bar */
         nav {
             display: flex;
             justify-content: center;
@@ -61,7 +59,6 @@
             color: white;
         }
 
-        /* Views management */
         .view {
             display: none;
         }
@@ -70,7 +67,6 @@
             display: block;
         }
 
-        /* Form Styling */
         .form-container {
             max-width: 500px;
             margin: 0 auto;
@@ -120,7 +116,6 @@
             background-color: #25a272;
         }
 
-        /* Stats & Filter Section */
         .stats-container {
             max-width: 800px;
             margin: 0 auto 1.5rem auto;
@@ -160,18 +155,20 @@
             font-weight: 700;
         }
 
-        .filter-container {
-            max-width: 300px;
+        /* Combined Controls Section */
+        .controls-container {
+            max-width: 500px;
             margin: 0 auto 2rem auto;
-            text-align: center;
             background: rgba(255, 255, 255, 0.95);
-            padding: 1rem;
+            padding: 1.25rem;
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
-        /* Library Grid Styling */
         .library-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -276,6 +273,7 @@
         <button class="nav-btn" id="libraryTab">View Library</button>
     </nav>
 
+    <!-- VIEW 1: Add Book -->
     <section id="addView" class="view active">
         <div class="form-container">
             <form id="bookForm">
@@ -309,30 +307,63 @@
         </div>
     </section>
 
+    <!-- VIEW 2: View Library -->
     <section id="libraryView" class="view">
         <div class="stats-container">
             <div class="total-count" id="totalCount">Total Books: 0</div>
             <div class="genre-stats" id="genreStats"></div>
         </div>
 
-        <div class="filter-container">
-            <label for="filterGenre">Filter by Genre</label>
-            <select id="filterGenre">
-                <option value="All">All Genres</option>
-                <option value="Fantasy">Fantasy</option>
-                <option value="Sci-Fi">Sci-Fi</option>
-                <option value="Fiction">Fiction</option>
-                <option value="Non-Fiction">Non-Fiction</option>
-                <option value="Mystery">Mystery</option>
-                <option value="Biography">Biography</option>
-                <option value="Other">Other</option>
-            </select>
+        <!-- Controls: Search + Genre Filter -->
+        <div class="controls-container">
+            <div>
+                <label for="searchInput">Search Collection</label>
+                <input type="text" id="searchInput" placeholder="Search title or author...">
+            </div>
+            <div>
+                <label for="filterGenre">Filter by Genre</label>
+                <select id="filterGenre">
+                    <option value="All">All Genres</option>
+                    <option value="Fantasy">Fantasy</option>
+                    <option value="Sci-Fi">Sci-Fi</option>
+                    <option value="Fiction">Fiction</option>
+                    <option value="Non-Fiction">Non-Fiction</option>
+                    <option value="Mystery">Mystery</option>
+                    <option value="Biography">Biography</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
         </div>
 
         <div class="library-grid" id="libraryGrid"></div>
     </section>
 
-    <script>
+    <!-- Firebase SDK Modules -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            deleteDoc, 
+            doc, 
+            onSnapshot 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // REPLACE WITH YOUR FIREBASE CONFIG
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const booksRef = collection(db, "books");
+
         const addTab = document.getElementById('addTab');
         const libraryTab = document.getElementById('libraryTab');
         const addView = document.getElementById('addView');
@@ -341,10 +372,11 @@
         const bookForm = document.getElementById('bookForm');
         const libraryGrid = document.getElementById('libraryGrid');
         const filterGenre = document.getElementById('filterGenre');
+        const searchInput = document.getElementById('searchInput');
         const totalCountEl = document.getElementById('totalCount');
         const genreStatsEl = document.getElementById('genreStats');
 
-        let myLibrary = JSON.parse(localStorage.getItem('myLibrary')) || [];
+        let myLibrary = [];
 
         addTab.addEventListener('click', () => {
             addTab.classList.add('active');
@@ -361,9 +393,13 @@
             renderLibrary();
         });
 
-        function saveToLocalStorage() {
-            localStorage.setItem('myLibrary', JSON.stringify(myLibrary));
-        }
+        onSnapshot(booksRef, (snapshot) => {
+            myLibrary = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            renderLibrary();
+        });
 
         function updateStats() {
             totalCountEl.textContent = `Total Books: ${myLibrary.length}`;
@@ -385,20 +421,24 @@
         function renderLibrary() {
             updateStats();
             libraryGrid.innerHTML = '';
+            
             const selectedGenre = filterGenre.value;
+            const query = searchInput.value.toLowerCase().trim();
 
-            const filteredBooks = selectedGenre === 'All' 
-                ? myLibrary 
-                : myLibrary.filter(book => book.genre === selectedGenre);
+            // Filter by both genre selection and search text match
+            const filteredBooks = myLibrary.filter(book => {
+                const matchesGenre = selectedGenre === 'All' || book.genre === selectedGenre;
+                const matchesSearch = book.title.toLowerCase().includes(query) || 
+                                      book.author.toLowerCase().includes(query);
+                return matchesGenre && matchesSearch;
+            });
 
             if (filteredBooks.length === 0) {
-                libraryGrid.innerHTML = `<p class="empty-message">No books found for this selection.</p>`;
+                libraryGrid.innerHTML = `<p class="empty-message">No books match your criteria.</p>`;
                 return;
             }
 
             filteredBooks.forEach((book) => {
-                const originalIndex = myLibrary.indexOf(book);
-
                 const bookCard = document.createElement('div');
                 bookCard.classList.add('book-card');
 
@@ -410,9 +450,14 @@
                             <div class="book-author">by ${book.author}</div>
                             <span class="book-genre">${book.genre}</span>
                         </div>
-                        <button class="delete-btn" onclick="removeBook(${originalIndex})">Remove</button>
+                        <button class="delete-btn" data-id="${book.id}">Remove</button>
                     </div>
                 `;
+
+                bookCard.querySelector('.delete-btn').addEventListener('click', async (e) => {
+                    const docId = e.target.getAttribute('data-id');
+                    await deleteDoc(doc(db, "books", docId));
+                });
 
                 libraryGrid.appendChild(bookCard);
             });
@@ -430,16 +475,14 @@
             if (file) {
                 const reader = new FileReader();
 
-                reader.onload = function(e) {
-                    const newBook = {
+                reader.onload = async function(e) {
+                    await addDoc(booksRef, {
                         title: titleInput,
                         author: authorInput,
                         genre: genreInput,
                         image: e.target.result
-                    };
+                    });
 
-                    myLibrary.push(newBook);
-                    saveToLocalStorage();
                     bookForm.reset();
                     libraryTab.click();
                 };
@@ -448,13 +491,9 @@
             }
         });
 
+        // Event listeners for live filtering
+        searchInput.addEventListener('input', renderLibrary);
         filterGenre.addEventListener('change', renderLibrary);
-
-        function removeBook(index) {
-            myLibrary.splice(index, 1);
-            saveToLocalStorage();
-            renderLibrary();
-        }
     </script>
 </body>
 </html>
