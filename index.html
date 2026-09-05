@@ -26,12 +26,34 @@
         header {
             text-align: center;
             margin-bottom: 1.5rem;
+            position: relative;
         }
 
         h1 {
             color: #ffffff;
             margin-bottom: 0.5rem;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+        }
+
+        .auth-controls {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .auth-btn {
+            background-color: rgba(255, 255, 255, 0.85);
+            border: 1px solid #ccc;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .auth-btn:hover {
+            background-color: white;
         }
 
         nav {
@@ -67,7 +89,7 @@
             display: block;
         }
 
-        .form-container {
+        .form-container, .modal-card {
             max-width: 500px;
             margin: 0 auto;
             background: rgba(255, 255, 255, 0.95);
@@ -75,6 +97,21 @@
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
             backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .modal-overlay.active {
+            display: flex;
         }
 
         .status-message {
@@ -102,6 +139,8 @@
         }
 
         input[type="text"],
+        input[type="email"],
+        input[type="password"],
         select {
             width: 100%;
             padding: 0.75rem;
@@ -161,7 +200,7 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.15);
         }
 
-        button.add-btn {
+        button.add-btn, button.submit-modal-btn {
             width: 100%;
             padding: 0.75rem;
             background-color: #2bc48a;
@@ -175,7 +214,7 @@
             margin-top: 0.5rem;
         }
 
-        button.add-btn:hover {
+        button.add-btn:hover, button.submit-modal-btn:hover {
             background-color: #25a272;
         }
 
@@ -311,32 +350,27 @@
             text-transform: uppercase;
         }
 
-        .status-toggle-btn {
+        .status-toggle-btn, .status-static-badge {
             font-size: 0.75rem;
             font-weight: 700;
             padding: 0.3rem 0.6rem;
             border-radius: 12px;
             border: none;
+        }
+
+        .status-toggle-btn {
             cursor: pointer;
             transition: all 0.2s ease;
         }
 
-        .status-toggle-btn.read {
+        .status-toggle-btn.read, .status-static-badge.read {
             background-color: #c6f6d5;
             color: #22543d;
         }
 
-        .status-toggle-btn.read:hover {
-            background-color: #9ae6b4;
-        }
-
-        .status-toggle-btn.tbr {
+        .status-toggle-btn.tbr, .status-static-badge.tbr {
             background-color: #feebc8;
             color: #744210;
-        }
-
-        .status-toggle-btn.tbr:hover {
-            background-color: #fbd38d;
         }
 
         .card-actions {
@@ -371,20 +405,31 @@
             padding: 1.5rem;
             border-radius: 8px;
         }
+
+        .close-modal {
+            float: right;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
     <header>
         <h1>My Personal Library</h1>
+        <div class="auth-controls">
+            <button id="loginBtn" class="auth-btn">🔒 Admin Login</button>
+            <button id="logoutBtn" class="auth-btn" style="display: none;">🔓 Logout</button>
+        </div>
     </header>
 
     <nav>
-        <button class="nav-btn" id="addTab">Add Book</button>
+        <button class="nav-btn" id="addTab" style="display: none;">Add Book</button>
         <button class="nav-btn" id="libraryTab">View Library</button>
     </nav>
 
-    <!-- VIEW 1: Add Book -->
     <section id="addView" class="view">
         <div class="form-container">
             <div id="statusMessage" class="status-message"></div>
@@ -441,7 +486,6 @@
         </div>
     </section>
 
-    <!-- VIEW 2: View Library -->
     <section id="libraryView" class="view">
         <div class="stats-container">
             <div class="total-count" id="totalCount">Total Books: 0</div>
@@ -483,8 +527,32 @@
         <div class="library-grid" id="libraryGrid"></div>
     </section>
 
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal-card">
+            <button class="close-modal" id="closeModal">✕</button>
+            <h2 style="margin-bottom: 1rem;">Admin Login</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" class="submit-modal-btn">Sign In</button>
+            </form>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword, 
+            signOut, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { 
             getFirestore, 
             collection, 
@@ -505,8 +573,17 @@
         };
 
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const db = getFirestore(app);
         const booksRef = collection(db, "books");
+
+        let currentUser = null;
+
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const loginModal = document.getElementById('loginModal');
+        const closeModal = document.getElementById('closeModal');
+        const loginForm = document.getElementById('loginForm');
 
         const addTab = document.getElementById('addTab');
         const libraryTab = document.getElementById('libraryTab');
@@ -535,25 +612,60 @@
         let selectedImageData = null;
         let myLibrary = [];
 
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                loginBtn.style.display = 'none';
+                logoutBtn.style.display = 'inline-block';
+                addTab.style.display = 'inline-block';
+            } else {
+                loginBtn.style.display = 'inline-block';
+                logoutBtn.style.display = 'none';
+                addTab.style.display = 'none';
+                if (localStorage.getItem('activeTab') === 'add') {
+                    switchView('library');
+                }
+            }
+            renderLibrary();
+        });
+
+        loginBtn.addEventListener('click', () => loginModal.classList.add('active'));
+        closeModal.addEventListener('click', () => loginModal.classList.remove('active'));
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                loginModal.classList.remove('active');
+                loginForm.reset();
+            } catch (err) {
+                alert("Login failed. Check your email and password.");
+            }
+        });
+
+        logoutBtn.addEventListener('click', () => signOut(auth));
+
         function switchView(viewName) {
             localStorage.setItem('activeTab', viewName);
 
-            if (viewName === 'library') {
+            if (viewName === 'add' && currentUser) {
+                addTab.classList.add('active');
+                libraryTab.classList.remove('active');
+                addView.classList.add('active');
+                libraryView.classList.remove('active');
+            } else {
                 libraryTab.classList.add('active');
                 addTab.classList.remove('active');
                 libraryView.classList.add('active');
                 addView.classList.remove('active');
                 renderLibrary();
-            } else {
-                addTab.classList.add('active');
-                libraryTab.classList.remove('active');
-                addView.classList.add('active');
-                libraryView.classList.remove('active');
             }
         }
 
-        // Load the stored view or default to 'add'
-        const initialView = localStorage.getItem('activeTab') || 'add';
+        const initialView = localStorage.getItem('activeTab') || 'library';
         switchView(initialView);
 
         addTab.addEventListener('click', () => switchView('add'));
@@ -689,6 +801,14 @@
                 const statusClass = bookStatus === 'Read' ? 'read' : 'tbr';
                 const statusIcon = bookStatus === 'Read' ? '✓ Read' : '📖 To be Read';
 
+                const statusBadgeHTML = currentUser
+                    ? `<button class="status-toggle-btn ${statusClass}" data-id="${book.id}" data-status="${bookStatus}">${statusIcon}</button>`
+                    : `<span class="status-static-badge ${statusClass}">${statusIcon}</span>`;
+
+                const actionsHTML = currentUser
+                    ? `<div class="card-actions"><button class="delete-btn" data-id="${book.id}">Remove</button></div>`
+                    : '';
+
                 bookCard.innerHTML = `
                     <img src="${book.image}" alt="${book.title}">
                     <div class="book-info">
@@ -697,35 +817,31 @@
                             <div class="book-author">by ${book.author}</div>
                             <div class="badges-wrapper">
                                 <span class="book-genre">${book.genre}</span>
-                                <button class="status-toggle-btn ${statusClass}" data-id="${book.id}" data-status="${bookStatus}">
-                                    ${statusIcon}
-                                </button>
+                                ${statusBadgeHTML}
                             </div>
                         </div>
-                        <div class="card-actions">
-                            <button class="delete-btn" data-id="${book.id}">Remove</button>
-                        </div>
+                        ${actionsHTML}
                     </div>
                 `;
 
-                bookCard.querySelector('.status-toggle-btn').addEventListener('click', async (e) => {
-                    const docId = e.currentTarget.getAttribute('data-id');
-                    const currentStatus = e.currentTarget.getAttribute('data-status');
-                    const newStatus = currentStatus === 'Read' ? 'To be Read' : 'Read';
+                if (currentUser) {
+                    bookCard.querySelector('.status-toggle-btn').addEventListener('click', async (e) => {
+                        const docId = e.currentTarget.getAttribute('data-id');
+                        const currentStatus = e.currentTarget.getAttribute('data-status');
+                        const newStatus = currentStatus === 'Read' ? 'To be Read' : 'Read';
 
-                    try {
-                        await updateDoc(doc(db, "books", docId), {
-                            status: newStatus
-                        });
-                    } catch (err) {
-                        console.error("Error updating status:", err);
-                    }
-                });
+                        try {
+                            await updateDoc(doc(db, "books", docId), { status: newStatus });
+                        } catch (err) {
+                            console.error("Error updating status:", err);
+                        }
+                    });
 
-                bookCard.querySelector('.delete-btn').addEventListener('click', async (e) => {
-                    const docId = e.target.getAttribute('data-id');
-                    await deleteDoc(doc(db, "books", docId));
-                });
+                    bookCard.querySelector('.delete-btn').addEventListener('click', async (e) => {
+                        const docId = e.target.getAttribute('data-id');
+                        await deleteDoc(doc(db, "books", docId));
+                    });
+                }
 
                 libraryGrid.appendChild(bookCard);
             });
