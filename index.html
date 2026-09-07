@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Personal Library</title>
+    <!-- Barcode Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -105,6 +107,43 @@
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
             backdrop-filter: blur(4px);
+        }
+
+        /* Mode Selector Sub-Tabs */
+        .mode-selector {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
+            background: #edf2f7;
+            padding: 0.25rem;
+            border-radius: 8px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 0.5rem;
+            border: none;
+            background: transparent;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #4a5568;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: white;
+            color: #2bc48a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .add-mode {
+            display: none;
+        }
+
+        .add-mode.active {
+            display: block;
         }
 
         .modal-overlay {
@@ -453,62 +492,92 @@
         <button class="nav-btn" id="libraryTab">View Library</button>
     </nav>
 
+    <!-- VIEW 1: Add Book -->
     <section id="addView" class="view">
         <div class="form-container">
             <div id="statusMessage" class="status-message"></div>
 
-            <form id="bookForm">
-                <div class="form-group">
-                    <label for="title">Book Title</label>
-                    <input type="text" id="title" placeholder="e.g. The Hobbit" required>
-                </div>
-                <div class="form-group">
-                    <label for="author">Author</label>
-                    <input type="text" id="author" placeholder="e.g. J.R.R. Tolkien" required>
-                </div>
-                <div class="form-group">
-                    <label for="genre">Genre</label>
-                    <select id="genre" required>
-                        <option value="" disabled selected>Select a genre</option>
-                        <option value="Fantasy">Fantasy</option>
-                        <option value="Sci-Fi">Sci-Fi</option>
-                        <option value="Fiction">Fiction</option>
-                        <option value="Non-Fiction">Non-Fiction</option>
-                        <option value="Mystery">Mystery</option>
-                        <option value="Biography">Biography</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="readingStatus">Reading Status</label>
-                    <select id="readingStatus" required>
-                        <option value="To be Read" selected>To be Read</option>
-                        <option value="Read">Read</option>
-                    </select>
-                </div>
+            <!-- Add Book Option Tabs -->
+            <div class="mode-selector">
+                <button type="button" class="mode-btn active" id="manualModeBtn">✏️ Manual Entry</button>
+                <button type="button" class="mode-btn" id="scanModeBtn">📷 Scan ISBN</button>
+            </div>
 
-                <div class="form-group">
-                    <label>Book Cover Image</label>
-                    <div class="image-options">
-                        <label class="image-option-card" id="uploadCard">
-                            <span class="image-option-title">📁 Upload Photo</span>
-                            <input type="file" id="uploadInput" accept="image/*">
-                        </label>
-                        <label class="image-option-card" id="cameraCard">
-                            <span class="image-option-title">📷 Take Photo</span>
-                            <input type="file" id="cameraInput" accept="image/*" capture="environment">
-                        </label>
-                    </div>
-                    <div class="preview-container" id="previewContainer">
-                        <img id="imagePreview" src="" alt="Cover Preview">
-                    </div>
+            <!-- OPTION 2: SCANNER PANEL -->
+            <div id="scanMode" class="add-mode">
+                <div style="text-align: center; padding: 1rem 0;">
+                    <p style="margin-bottom: 1rem; color: #4a5568; font-size: 0.95rem;">Scan a book's ISBN barcode using your camera to auto-populate the details.</p>
+                    <button type="button" id="startScanBtn" class="auth-btn" style="width: 100%; padding: 0.75rem; background: #2b6cb0; color: white; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer;">
+                        📷 Launch Camera Scanner
+                    </button>
                 </div>
+            </div>
 
-                <button type="submit" class="add-btn" id="submitBtn">Add Book</button>
-            </form>
+            <!-- OPTION 1: MANUAL FORM (Also handles scanned results) -->
+            <div id="manualMode" class="add-mode active">
+                <form id="bookForm">
+                    <div class="form-group">
+                        <label for="title">Book Title</label>
+                        <input type="text" id="title" placeholder="e.g. The Hobbit" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="author">Author</label>
+                        <input type="text" id="author" placeholder="e.g. J.R.R. Tolkien" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="genre">Genre</label>
+                        <select id="genre" required>
+                            <option value="" disabled selected>Select a genre</option>
+                            <option value="Fantasy">Fantasy</option>
+                            <option value="Sci-Fi">Sci-Fi</option>
+                            <option value="Fiction">Fiction</option>
+                            <option value="Non-Fiction">Non-Fiction</option>
+                            <option value="Mystery">Mystery</option>
+                            <option value="Biography">Biography</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="readingStatus">Reading Status</label>
+                        <select id="readingStatus" required>
+                            <option value="To be Read" selected>To be Read</option>
+                            <option value="Read">Read</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Book Cover Image</label>
+                        <div class="image-options">
+                            <label class="image-option-card" id="uploadCard">
+                                <span class="image-option-title">📁 Upload Photo</span>
+                                <input type="file" id="uploadInput" accept="image/*">
+                            </label>
+                            <label class="image-option-card" id="cameraCard">
+                                <span class="image-option-title">📷 Take Photo</span>
+                                <input type="file" id="cameraInput" accept="image/*" capture="environment">
+                            </label>
+                        </div>
+                        <div class="preview-container" id="previewContainer">
+                            <img id="imagePreview" src="" alt="Cover Preview">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="add-btn" id="submitBtn">Add Book</button>
+                </form>
+            </div>
         </div>
     </section>
 
+    <!-- Camera Viewfinder Overlay -->
+    <div id="scannerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; align-items: center; justify-content: center; flex-direction: column;">
+        <div style="background: white; padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 400px; text-align: center;">
+            <h3 style="margin-top: 0;">Align Barcode in Frame</h3>
+            <div id="reader" style="width: 100%; margin-top: 1rem;"></div>
+            <button type="button" id="closeScanBtn" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #e53e3e; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Cancel Scan</button>
+        </div>
+    </div>
+
+    <!-- VIEW 2: View Library -->
     <section id="libraryView" class="view">
         <div class="stats-container">
             <div class="total-count" id="totalCount">Total Books: 0</div>
@@ -563,31 +632,7 @@
         </div>
     </section>
 
-    <section id="detailsView" class="view">
-        <div class="form-container" style="max-width: 600px;">
-            <button id="backToLibraryBtn" class="nav-btn" style="margin-bottom: 1rem; padding: 0.4rem 0.8rem; font-size: 0.85rem;">← Back to Library</button>
-            <div style="text-align: center; margin-bottom: 1.5rem;">
-                <img id="detailBookImage" src="" alt="Cover" style="max-height: 250px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); margin-bottom: 1rem;">
-                <h2 id="detailBookTitle" style="color: #1a202c;"></h2>
-                <p id="detailBookAuthor" style="color: #4a5568; font-style: italic; margin-bottom: 0.5rem;"></p>
-                <div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.5rem;">
-                    <span id="detailBookGenre" class="book-genre"></span>
-                    <span id="detailBookStatus" class="status-static-badge"></span>
-                </div>
-            </div>
-
-            <div style="margin-top: 1.5rem;">
-                <h3 style="margin-bottom: 0.5rem; font-size: 1.1rem; color: #2d3748;">Description</h3>
-                <p id="detailBookDescriptionText" style="line-height: 1.6; color: #4a5568; white-space: pre-line; display: none;"></p>
-
-                <form id="descriptionForm" style="display: none;">
-                    <textarea id="detailBookDescriptionInput" rows="6" style="width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; font-family: inherit;" placeholder="Write a description or review for this book..."></textarea>
-                    <button type="submit" id="saveDescriptionBtn" class="add-btn" style="margin-top: 0.75rem;">Save Description</button>
-                </form>
-            </div>
-        </div>
-    </section>
-
+    <!-- LOGIN MODAL -->
     <div class="modal-overlay" id="loginModal">
         <div class="modal-card">
             <button class="close-modal" id="closeModal">✕</button>
@@ -650,18 +695,11 @@
         const libraryTab = document.getElementById('libraryTab');
         const addView = document.getElementById('addView');
         const libraryView = document.getElementById('libraryView');
-        const detailsView = document.getElementById('detailsView');
 
-        const backToLibraryBtn = document.getElementById('backToLibraryBtn');
-        const detailBookImage = document.getElementById('detailBookImage');
-        const detailBookTitle = document.getElementById('detailBookTitle');
-        const detailBookAuthor = document.getElementById('detailBookAuthor');
-        const detailBookGenre = document.getElementById('detailBookGenre');
-        const detailBookStatus = document.getElementById('detailBookStatus');
-        const detailBookDescriptionText = document.getElementById('detailBookDescriptionText');
-        const detailBookDescriptionInput = document.getElementById('detailBookDescriptionInput');
-        const descriptionForm = document.getElementById('descriptionForm');
-        const saveDescriptionBtn = document.getElementById('saveDescriptionBtn');
+        const manualModeBtn = document.getElementById('manualModeBtn');
+        const scanModeBtn = document.getElementById('scanModeBtn');
+        const manualMode = document.getElementById('manualMode');
+        const scanMode = document.getElementById('scanMode');
 
         const bookForm = document.getElementById('bookForm');
         const statusMessage = document.getElementById('statusMessage');
@@ -687,11 +725,15 @@
         const previewContainer = document.getElementById('previewContainer');
         const imagePreview = document.getElementById('imagePreview');
 
+        const startScanBtn = document.getElementById('startScanBtn');
+        const closeScanBtn = document.getElementById('closeScanBtn');
+        const scannerModal = document.getElementById('scannerModal');
+
         let selectedImageData = null;
         let myLibrary = [];
         let currentPage = 1;
         let itemsPerPage = 20;
-        let currentSelectedBookId = null;
+        let html5QrCode = null;
 
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
@@ -707,11 +749,7 @@
                     switchView('library');
                 }
             }
-            if (detailsView.classList.contains('active') && currentSelectedBookId) {
-                showBookDetails(currentSelectedBookId);
-            } else {
-                renderLibrary();
-            }
+            renderLibrary();
         });
 
         function hideLoginModal() {
@@ -740,8 +778,6 @@
         function switchView(viewName) {
             localStorage.setItem('activeTab', viewName);
 
-            detailsView.classList.remove('active');
-
             if (viewName === 'add' && currentUser) {
                 addTab.classList.add('active');
                 libraryTab.classList.remove('active');
@@ -762,62 +798,19 @@
         addTab.addEventListener('click', () => switchView('add'));
         libraryTab.addEventListener('click', () => switchView('library'));
 
-        backToLibraryBtn.addEventListener('click', () => switchView('library'));
+        // Toggle Option 1 (Manual) vs Option 2 (ISBN Scanner)
+        manualModeBtn.addEventListener('click', () => {
+            manualModeBtn.classList.add('active');
+            scanModeBtn.classList.remove('active');
+            manualMode.classList.add('active');
+            scanMode.classList.remove('active');
+        });
 
-        function showBookDetails(bookId) {
-            const book = myLibrary.find(b => b.id === bookId);
-            if (!book) return;
-
-            currentSelectedBookId = bookId;
-
-            detailBookImage.src = book.image;
-            detailBookTitle.textContent = book.title;
-            detailBookAuthor.textContent = `by ${book.author}`;
-            detailBookGenre.textContent = book.genre;
-            
-            const status = book.status || 'To be Read';
-            detailBookStatus.textContent = status === 'Read' ? '✓ Read' : '📖 To be Read';
-            detailBookStatus.className = `status-static-badge ${status === 'Read' ? 'read' : 'tbr'}`;
-
-            const description = book.description || 'No description available for this book yet.';
-
-            if (currentUser) {
-                descriptionForm.style.display = 'block';
-                detailBookDescriptionText.style.display = 'none';
-                detailBookDescriptionInput.value = book.description || '';
-            } else {
-                descriptionForm.style.display = 'none';
-                detailBookDescriptionText.style.display = 'block';
-                detailBookDescriptionText.textContent = description;
-            }
-
-            addView.classList.remove('active');
-            libraryView.classList.remove('active');
-            detailsView.classList.add('active');
-            addTab.classList.remove('active');
-            libraryTab.classList.remove('active');
-        }
-
-        descriptionForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!currentSelectedBookId || !currentUser) return;
-
-            saveDescriptionBtn.disabled = true;
-            saveDescriptionBtn.textContent = 'Saving...';
-
-            try {
-                const newDescription = detailBookDescriptionInput.value.trim();
-                await updateDoc(doc(db, "books", currentSelectedBookId), {
-                    description: newDescription
-                });
-                alert('Description saved successfully!');
-            } catch (err) {
-                console.error("Error saving description:", err);
-                alert('Failed to save description. Please try again.');
-            } finally {
-                saveDescriptionBtn.disabled = false;
-                saveDescriptionBtn.textContent = 'Save Description';
-            }
+        scanModeBtn.addEventListener('click', () => {
+            scanModeBtn.classList.add('active');
+            manualModeBtn.classList.remove('active');
+            scanMode.classList.add('active');
+            manualMode.classList.remove('active');
         });
 
         onSnapshot(booksRef, (snapshot) => {
@@ -825,14 +818,82 @@
                 id: doc.id,
                 ...doc.data()
             }));
-            if (detailsView.classList.contains('active') && currentSelectedBookId) {
-                showBookDetails(currentSelectedBookId);
-            } else {
-                renderLibrary();
-            }
+            renderLibrary();
         }, (error) => {
             console.error("Firestore snapshot error:", error);
         });
+
+        // ISBN BARCODE SCANNER LOGIC
+        startScanBtn.addEventListener('click', () => {
+            scannerModal.style.display = 'flex';
+            html5QrCode = new Html5Qrcode("reader");
+
+            const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                config, 
+                onBarcodeDetected
+            ).catch(err => {
+                alert("Camera access error: " + err);
+                scannerModal.style.display = 'none';
+            });
+        });
+
+        function stopScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    scannerModal.style.display = 'none';
+                }).catch(() => {
+                    scannerModal.style.display = 'none';
+                });
+            }
+        }
+
+        closeScanBtn.addEventListener('click', stopScanner);
+
+        async function onBarcodeDetected(decodedText) {
+            const isbn = decodedText.replace(/[^0-9X]/gi, '');
+            stopScanner();
+
+            try {
+                const response = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
+                const data = await response.json();
+                const bookData = data[`ISBN:${isbn}`];
+
+                if (bookData) {
+                    if (bookData.title) {
+                        document.getElementById('title').value = bookData.title;
+                    }
+
+                    if (bookData.authors && bookData.authors.length > 0) {
+                        document.getElementById('author').value = bookData.authors[0].name;
+                    }
+
+                    if (bookData.cover && bookData.cover.large) {
+                        selectedImageData = bookData.cover.large;
+                        imagePreview.src = selectedImageData;
+                        previewContainer.style.display = 'block';
+                        uploadCard.classList.remove('selected');
+                        cameraCard.classList.remove('selected');
+                    }
+
+                    // Auto-set status to "To be Read"
+                    document.getElementById('readingStatus').value = 'To be Read';
+
+                    // Switch back to manual mode view to allow review & submission
+                    manualModeBtn.click();
+
+                    alert(`Book found: "${bookData.title}"! Status set to "To be Read". Review and submit when ready.`);
+                } else {
+                    alert(`No records found for ISBN: ${isbn}. Please enter details manually.`);
+                    manualModeBtn.click();
+                }
+            } catch (err) {
+                console.error("ISBN lookup error:", err);
+                alert("Failed to retrieve book information.");
+            }
+        }
 
         function compressAndResizeImage(file, maxWidth, maxHeight, quality) {
             return new Promise((resolve, reject) => {
@@ -977,10 +1038,10 @@
                     : '';
 
                 bookCard.innerHTML = `
-                    <img src="${book.image}" alt="${book.title}" class="clickable-cover" style="cursor: pointer;">
+                    <img src="${book.image}" alt="${book.title}">
                     <div class="book-info">
                         <div>
-                            <div class="book-title clickable-title" style="cursor: pointer;">${book.title}</div>
+                            <div class="book-title">${book.title}</div>
                             <div class="book-author">by ${book.author}</div>
                             <div class="badges-wrapper">
                                 <span class="book-genre">${book.genre}</span>
@@ -991,12 +1052,8 @@
                     </div>
                 `;
 
-                bookCard.querySelector('.clickable-cover').addEventListener('click', () => showBookDetails(book.id));
-                bookCard.querySelector('.clickable-title').addEventListener('click', () => showBookDetails(book.id));
-
                 if (currentUser) {
                     bookCard.querySelector('.status-toggle-btn').addEventListener('click', async (e) => {
-                        e.stopPropagation();
                         const docId = e.currentTarget.getAttribute('data-id');
                         const currentStatus = e.currentTarget.getAttribute('data-status');
                         const newStatus = currentStatus === 'Read' ? 'To be Read' : 'Read';
@@ -1009,7 +1066,6 @@
                     });
 
                     bookCard.querySelector('.delete-btn').addEventListener('click', async (e) => {
-                        e.stopPropagation();
                         const docId = e.target.getAttribute('data-id');
                         const isConfirmed = confirm("Are you sure you want to remove this book?");
                         
@@ -1067,7 +1123,7 @@
             event.preventDefault();
 
             if (!selectedImageData) {
-                alert('Please select an image by uploading a photo or taking one with your camera.');
+                alert('Please select an image by uploading a photo, taking one, or scanning an ISBN.');
                 return;
             }
 
@@ -1085,8 +1141,7 @@
                     author: authorInput,
                     genre: genreInput,
                     status: statusInput,
-                    image: selectedImageData,
-                    description: ""
+                    image: selectedImageData
                 });
 
                 statusMessage.textContent = "Book successfully added to your library.";
