@@ -798,7 +798,6 @@
         addTab.addEventListener('click', () => switchView('add'));
         libraryTab.addEventListener('click', () => switchView('library'));
 
-        // Toggle Option 1 (Manual) vs Option 2 (ISBN Scanner)
         manualModeBtn.addEventListener('click', () => {
             manualModeBtn.classList.add('active');
             scanModeBtn.classList.remove('active');
@@ -853,7 +852,6 @@
         closeScanBtn.addEventListener('click', stopScanner);
 
         async function onBarcodeDetected(decodedText) {
-            // Clean ISBN digits and strip extra barcode add-on numbers
             let isbn = decodedText.replace(/[^0-9]/g, '');
             if (isbn.length > 13) {
                 isbn = isbn.substring(0, 13);
@@ -867,33 +865,42 @@
                 let coverUrl = '';
                 let found = false;
 
-                // 1. Try OpenLibrary API
-                const openLibRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
-                const openLibData = await openLibRes.json();
-                const bookData = openLibData[`ISBN:${isbn}`];
+                // 1. Try Google Books API First (Stronger lookup for newer ISBNs)
+                const googleRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+                const googleData = await googleRes.json();
 
-                if (bookData) {
+                if (googleData.items && googleData.items.length > 0) {
                     found = true;
-                    title = bookData.title || '';
-                    author = bookData.authors?.length > 0 ? bookData.authors[0].name : '';
-                    coverUrl = bookData.cover?.large || '';
+                    const info = googleData.items[0].volumeInfo;
+                    title = info.title || '';
+                    author = info.authors ? info.authors.join(', ') : '';
+                    if (info.imageLinks?.thumbnail) {
+                        coverUrl = info.imageLinks.thumbnail.replace('http:', 'https:');
+                        // Proxy cover through corsproxy to bypass strict browser image policy
+                        coverUrl = `https://corsproxy.io/?${encodeURIComponent(coverUrl)}`;
+                    }
                 } else {
-                    // 2. Fallback to Google Books API
-                    const googleRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
-                    const googleData = await googleRes.json();
+                    // 2. Fallback to OpenLibrary API
+                    const openLibRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
+                    const openLibData = await openLibRes.json();
+                    const bookData = openLibData[`ISBN:${isbn}`];
 
-                    if (googleData.items && googleData.items.length > 0) {
+                    if (bookData) {
                         found = true;
-                        const info = googleData.items[0].volumeInfo;
-                        title = info.title || '';
-                        author = info.authors ? info.authors[0] : '';
-                        coverUrl = info.imageLinks?.thumbnail ? info.imageLinks.thumbnail.replace('http:', 'https:') : '';
+                        title = bookData.title || '';
+                        author = bookData.authors?.length > 0 ? bookData.authors[0].name : '';
+                        coverUrl = bookData.cover?.large || '';
                     }
                 }
 
                 if (found) {
                     if (title) document.getElementById('title').value = title;
                     if (author) document.getElementById('author').value = author;
+
+                    if (!coverUrl && title) {
+                        // Dynamic placeholder image fallback if no image exists in APIs
+                        coverUrl = `https://via.placeholder.com/300x450/2bc48a/ffffff?text=${encodeURIComponent(title)}`;
+                    }
 
                     if (coverUrl) {
                         selectedImageData = coverUrl;
@@ -903,15 +910,12 @@
                         cameraCard.classList.remove('selected');
                     }
 
-                    // Auto-set status to "To be Read"
                     document.getElementById('readingStatus').value = 'To be Read';
-
-                    // Switch back to manual form to review & submit
                     manualModeBtn.click();
 
-                    alert(`Book found: "${title}"! Status set to "To be Read". Review details and submit.`);
+                    alert(`Book found: "${title}"! Status set to "To be Read".`);
                 } else {
-                    alert(`No records found for ISBN: ${isbn} on OpenLibrary or Google Books. Please enter details manually.`);
+                    alert(`No records found for ISBN: ${isbn}. Please enter details manually.`);
                     manualModeBtn.click();
                 }
 
