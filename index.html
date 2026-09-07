@@ -853,26 +853,51 @@
         closeScanBtn.addEventListener('click', stopScanner);
 
         async function onBarcodeDetected(decodedText) {
-            const isbn = decodedText.replace(/[^0-9X]/gi, '');
+            // Clean ISBN digits and strip extra barcode add-on numbers
+            let isbn = decodedText.replace(/[^0-9]/g, '');
+            if (isbn.length > 13) {
+                isbn = isbn.substring(0, 13);
+            }
+
             stopScanner();
 
             try {
-                const response = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
-                const data = await response.json();
-                const bookData = data[`ISBN:${isbn}`];
+                let title = '';
+                let author = '';
+                let coverUrl = '';
+                let found = false;
+
+                // 1. Try OpenLibrary API
+                const openLibRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
+                const openLibData = await openLibRes.json();
+                const bookData = openLibData[`ISBN:${isbn}`];
 
                 if (bookData) {
-                    if (bookData.title) {
-                        document.getElementById('title').value = bookData.title;
-                    }
+                    found = true;
+                    title = bookData.title || '';
+                    author = bookData.authors?.length > 0 ? bookData.authors[0].name : '';
+                    coverUrl = bookData.cover?.large || '';
+                } else {
+                    // 2. Fallback to Google Books API
+                    const googleRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+                    const googleData = await googleRes.json();
 
-                    if (bookData.authors && bookData.authors.length > 0) {
-                        document.getElementById('author').value = bookData.authors[0].name;
+                    if (googleData.items && googleData.items.length > 0) {
+                        found = true;
+                        const info = googleData.items[0].volumeInfo;
+                        title = info.title || '';
+                        author = info.authors ? info.authors[0] : '';
+                        coverUrl = info.imageLinks?.thumbnail ? info.imageLinks.thumbnail.replace('http:', 'https:') : '';
                     }
+                }
 
-                    if (bookData.cover && bookData.cover.large) {
-                        selectedImageData = bookData.cover.large;
-                        imagePreview.src = selectedImageData;
+                if (found) {
+                    if (title) document.getElementById('title').value = title;
+                    if (author) document.getElementById('author').value = author;
+
+                    if (coverUrl) {
+                        selectedImageData = coverUrl;
+                        imagePreview.src = coverUrl;
                         previewContainer.style.display = 'block';
                         uploadCard.classList.remove('selected');
                         cameraCard.classList.remove('selected');
@@ -881,17 +906,19 @@
                     // Auto-set status to "To be Read"
                     document.getElementById('readingStatus').value = 'To be Read';
 
-                    // Switch back to manual mode view to allow review & submission
+                    // Switch back to manual form to review & submit
                     manualModeBtn.click();
 
-                    alert(`Book found: "${bookData.title}"! Status set to "To be Read". Review and submit when ready.`);
+                    alert(`Book found: "${title}"! Status set to "To be Read". Review details and submit.`);
                 } else {
-                    alert(`No records found for ISBN: ${isbn}. Please enter details manually.`);
+                    alert(`No records found for ISBN: ${isbn} on OpenLibrary or Google Books. Please enter details manually.`);
                     manualModeBtn.click();
                 }
+
             } catch (err) {
                 console.error("ISBN lookup error:", err);
                 alert("Failed to retrieve book information.");
+                manualModeBtn.click();
             }
         }
 
@@ -1106,7 +1133,7 @@
             const filteredBooks = myLibrary.filter(book => {
                 const bookStatus = book.status || 'To be Read';
                 const matchesGenre = selectedGenre === 'All' || book.genre === selectedGenre;
-                const matchesStatus = selectedStatus === 'All' || bookStatus === selectedStatus;
+                const matchesStatus = selectedStatus === 'All' || book.status === selectedStatus;
                 const matchesSearch = book.title.toLowerCase().includes(query) || book.author.toLowerCase().includes(query);
                 return matchesGenre && matchesStatus && matchesSearch;
             });
