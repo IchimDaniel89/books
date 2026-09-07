@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Personal Library</title>
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -106,42 +105,6 @@
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
             backdrop-filter: blur(4px);
-        }
-
-        .mode-selector {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1.25rem;
-            background: #edf2f7;
-            padding: 0.25rem;
-            border-radius: 8px;
-        }
-
-        .mode-btn {
-            flex: 1;
-            padding: 0.5rem;
-            border: none;
-            background: transparent;
-            font-weight: 600;
-            font-size: 0.9rem;
-            color: #4a5568;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .mode-btn.active {
-            background: white;
-            color: #2bc48a;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .add-mode {
-            display: none;
-        }
-
-        .add-mode.active {
-            display: block;
         }
 
         .modal-overlay {
@@ -494,81 +457,57 @@
         <div class="form-container">
             <div id="statusMessage" class="status-message"></div>
 
-            <div class="mode-selector">
-                <button type="button" class="mode-btn active" id="manualModeBtn">✏️ Manual Entry</button>
-                <button type="button" class="mode-btn" id="scanModeBtn">📷 Scan ISBN</button>
-            </div>
-
-            <div id="scanMode" class="add-mode">
-                <div style="text-align: center; padding: 1rem 0;">
-                    <p style="margin-bottom: 1rem; color: #4a5568; font-size: 0.95rem;">Scan a book's ISBN barcode using your camera to auto-populate the details.</p>
-                    <button type="button" id="startScanBtn" class="auth-btn" style="width: 100%; padding: 0.75rem; background: #2b6cb0; color: white; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer;">
-                        📷 Launch Camera Scanner
-                    </button>
+            <form id="bookForm">
+                <div class="form-group">
+                    <label for="title">Book Title</label>
+                    <input type="text" id="title" placeholder="e.g. The Hobbit" required>
                 </div>
-            </div>
+                <div class="form-group">
+                    <label for="author">Author</label>
+                    <input type="text" id="author" placeholder="e.g. J.R.R. Tolkien" required>
+                </div>
+                <div class="form-group">
+                    <label for="genre">Genre</label>
+                    <select id="genre" required>
+                        <option value="" disabled selected>Select a genre</option>
+                        <option value="Fantasy">Fantasy</option>
+                        <option value="Sci-Fi">Sci-Fi</option>
+                        <option value="Fiction">Fiction</option>
+                        <option value="Non-Fiction">Non-Fiction</option>
+                        <option value="Mystery">Mystery</option>
+                        <option value="Biography">Biography</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="readingStatus">Reading Status</label>
+                    <select id="readingStatus" required>
+                        <option value="To be Read" selected>To be Read</option>
+                        <option value="Read">Read</option>
+                    </select>
+                </div>
 
-            <div id="manualMode" class="add-mode active">
-                <form id="bookForm">
-                    <div class="form-group">
-                        <label for="title">Book Title</label>
-                        <input type="text" id="title" placeholder="e.g. The Hobbit" required>
+                <div class="form-group">
+                    <label>Book Cover Image</label>
+                    <div class="image-options">
+                        <label class="image-option-card" id="uploadCard">
+                            <span class="image-option-title">📁 Upload Photo</span>
+                            <input type="file" id="uploadInput" accept="image/*">
+                        </label>
+                        <label class="image-option-card" id="cameraCard">
+                            <span class="image-option-title">📷 Take Photo</span>
+                            <input type="file" id="cameraInput" accept="image/*" capture="environment">
+                        </label>
                     </div>
-                    <div class="form-group">
-                        <label for="author">Author</label>
-                        <input type="text" id="author" placeholder="e.g. J.R.R. Tolkien" required>
+                    <div class="preview-container" id="previewContainer">
+                        <img id="imagePreview" src="" alt="Cover Preview">
                     </div>
-                    <div class="form-group">
-                        <label for="genre">Genre</label>
-                        <select id="genre" required>
-                            <option value="" disabled selected>Select a genre</option>
-                            <option value="Fantasy">Fantasy</option>
-                            <option value="Sci-Fi">Sci-Fi</option>
-                            <option value="Fiction">Fiction</option>
-                            <option value="Non-Fiction">Non-Fiction</option>
-                            <option value="Mystery">Mystery</option>
-                            <option value="Biography">Biography</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="readingStatus">Reading Status</label>
-                        <select id="readingStatus" required>
-                            <option value="To be Read" selected>To be Read</option>
-                            <option value="Read">Read</option>
-                        </select>
-                    </div>
+                </div>
 
-                    <div class="form-group">
-                        <label>Book Cover Image</label>
-                        <div class="image-options">
-                            <label class="image-option-card" id="uploadCard">
-                                <span class="image-option-title">📁 Upload Photo</span>
-                                <input type="file" id="uploadInput" accept="image/*">
-                            </label>
-                            <label class="image-option-card" id="cameraCard">
-                                <span class="image-option-title">📷 Take Photo</span>
-                                <input type="file" id="cameraInput" accept="image/*" capture="environment">
-                            </label>
-                        </div>
-                        <div class="preview-container" id="previewContainer">
-                            <img id="imagePreview" src="" alt="Cover Preview">
-                        </div>
-                    </div>
-
-                    <button type="submit" class="add-btn" id="submitBtn">Add Book</button>
-                </form>
-            </div>
+                <button type="submit" class="add-btn" id="submitBtn">Add Book</button>
+            </form>
         </div>
     </section>
-
-    <div id="scannerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; align-items: center; justify-content: center; flex-direction: column;">
-        <div style="background: white; padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 400px; text-align: center;">
-            <h3 style="margin-top: 0;">Align Barcode in Frame</h3>
-            <div id="reader" style="width: 100%; margin-top: 1rem;"></div>
-            <button type="button" id="closeScanBtn" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #e53e3e; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Cancel Scan</button>
-        </div>
-    </div>
 
     <section id="libraryView" class="view">
         <div class="stats-container">
@@ -687,11 +626,6 @@
         const addView = document.getElementById('addView');
         const libraryView = document.getElementById('libraryView');
 
-        const manualModeBtn = document.getElementById('manualModeBtn');
-        const scanModeBtn = document.getElementById('scanModeBtn');
-        const manualMode = document.getElementById('manualMode');
-        const scanMode = document.getElementById('scanMode');
-
         const bookForm = document.getElementById('bookForm');
         const statusMessage = document.getElementById('statusMessage');
         const submitBtn = document.getElementById('submitBtn');
@@ -716,15 +650,10 @@
         const previewContainer = document.getElementById('previewContainer');
         const imagePreview = document.getElementById('imagePreview');
 
-        const startScanBtn = document.getElementById('startScanBtn');
-        const closeScanBtn = document.getElementById('closeScanBtn');
-        const scannerModal = document.getElementById('scannerModal');
-
         let selectedImageData = null;
         let myLibrary = [];
         let currentPage = 1;
         let itemsPerPage = 20;
-        let html5QrCode = null;
 
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
@@ -789,20 +718,6 @@
         addTab.addEventListener('click', () => switchView('add'));
         libraryTab.addEventListener('click', () => switchView('library'));
 
-        manualModeBtn.addEventListener('click', () => {
-            manualModeBtn.classList.add('active');
-            scanModeBtn.classList.remove('active');
-            manualMode.classList.add('active');
-            scanMode.classList.remove('active');
-        });
-
-        scanModeBtn.addEventListener('click', () => {
-            scanModeBtn.classList.add('active');
-            manualModeBtn.classList.remove('active');
-            scanMode.classList.add('active');
-            manualMode.classList.remove('active');
-        });
-
         onSnapshot(booksRef, (snapshot) => {
             myLibrary = snapshot.docs.map(doc => ({
                 id: doc.id,
@@ -812,167 +727,6 @@
         }, (error) => {
             console.error("Firestore snapshot error:", error);
         });
-
-        // MULTI-TIER ISBN BARCODE SCANNER LOGIC
-        startScanBtn.addEventListener('click', () => {
-            scannerModal.style.display = 'flex';
-            html5QrCode = new Html5Qrcode("reader");
-
-            const config = { fps: 10, qrbox: { width: 250, height: 150 } };
-
-            html5QrCode.start(
-                { facingMode: "environment" }, 
-                config, 
-                onBarcodeDetected
-            ).catch(err => {
-                alert("Camera access error: " + err);
-                scannerModal.style.display = 'none';
-            });
-        });
-
-        function stopScanner() {
-            if (html5QrCode) {
-                html5QrCode.stop().then(() => {
-                    scannerModal.style.display = 'none';
-                }).catch(() => {
-                    scannerModal.style.display = 'none';
-                });
-            }
-        }
-
-        closeScanBtn.addEventListener('click', stopScanner);
-
-        async function onBarcodeDetected(decodedText) {
-            let cleanIsbn = decodedText.replace(/[^0-9X]/gi, '').trim();
-            if (cleanIsbn.length > 13) {
-                cleanIsbn = cleanIsbn.substring(0, 13);
-            }
-
-            stopScanner();
-
-            let title = '';
-            let author = '';
-            let coverUrl = '';
-            let found = false;
-
-            try {
-                // TIER 1: Google Books API
-                try {
-                    const googleRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${cleanIsbn}`);
-                    const googleData = await googleRes.json();
-
-                    if (googleData.totalItems > 0 && googleData.items) {
-                        const info = googleData.items[0].volumeInfo;
-                        title = info.title || '';
-                        author = info.authors ? info.authors.join(', ') : '';
-                        if (info.imageLinks?.thumbnail) {
-                            coverUrl = info.imageLinks.thumbnail.replace('http:', 'https:');
-                        }
-                        found = true;
-                    }
-                } catch (e) {
-                    console.warn("Google Books lookup skipped/failed:", e);
-                }
-
-                // TIER 2: OpenLibrary API Direct ISBN Query
-                if (!found) {
-                    try {
-                        const openLibRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanIsbn}&format=json&jscmd=data`);
-                        const openLibData = await openLibRes.json();
-                        const bookData = openLibData[`ISBN:${cleanIsbn}`];
-
-                        if (bookData) {
-                            title = bookData.title || '';
-                            author = bookData.authors?.length > 0 ? bookData.authors[0].name : '';
-                            coverUrl = bookData.cover?.large || bookData.cover?.medium || '';
-                            found = true;
-                        }
-                    } catch (e) {
-                        console.warn("OpenLibrary ISBN direct lookup failed:", e);
-                    }
-                }
-
-                // TIER 3: OpenLibrary Search Index (Includes cataloged Romanian publishers)
-                if (!found) {
-                    try {
-                        const searchRes = await fetch(`https://openlibrary.org/search.json?q=${cleanIsbn}`);
-                        const searchData = await searchRes.json();
-
-                        if (searchData.numFound > 0 && searchData.docs.length > 0) {
-                            const doc = searchData.docs[0];
-                            title = doc.title || '';
-                            author = doc.author_name ? doc.author_name.join(', ') : '';
-                            if (doc.cover_i) {
-                                coverUrl = `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`;
-                            }
-                            found = true;
-                        }
-                    } catch (e) {
-                        console.warn("OpenLibrary Search API failed:", e);
-                    }
-                }
-
-                // TIER 4: Romanian Alternative Strategy (CORS Proxy -> Cărturești Scraper)
-                if (!found) {
-                    try {
-                        const targetUrl = encodeURIComponent(`https://carturesti.ro/product/search/${cleanIsbn}`);
-                        const proxyRes = await fetch(`https://api.allorigins.win/get?url=${targetUrl}`);
-                        const proxyData = await proxyRes.json();
-
-                        if (proxyData.contents) {
-                            const parser = new DOMParser();
-                            const doc = parser.parseFromString(proxyData.contents, 'text/html');
-
-                            const ogTitle = doc.querySelector('meta[property="og:title"]')?.getAttribute('content');
-                            const ogImage = doc.querySelector('meta[property="og:image"]')?.getAttribute('content');
-                            const ogDesc = doc.querySelector('meta[property="og:description"]')?.getAttribute('content');
-
-                            if (ogTitle) {
-                                title = ogTitle.split('|')[0].replace(' - Carte', '').trim();
-                                coverUrl = ogImage || '';
-                                
-                                if (ogDesc && ogDesc.includes('de ')) {
-                                    author = ogDesc.split('de ')[1].split('.')[0].trim();
-                                }
-
-                                found = true;
-                            }
-                        }
-                    } catch (e) {
-                        console.warn("Romanian CORS fallback scraper failed:", e);
-                    }
-                }
-
-                // POPULATE FORM OR SWAP TO MANUAL ENTRY
-                if (found && title) {
-                    document.getElementById('title').value = title;
-                    document.getElementById('author').value = author;
-
-                    if (!coverUrl) {
-                        coverUrl = `https://via.placeholder.com/300x450/2bc48a/ffffff?text=${encodeURIComponent(title)}`;
-                    }
-
-                    selectedImageData = coverUrl;
-                    imagePreview.src = coverUrl;
-                    previewContainer.style.display = 'block';
-                    uploadCard.classList.remove('selected');
-                    cameraCard.classList.remove('selected');
-
-                    document.getElementById('readingStatus').value = 'To be Read';
-                    manualModeBtn.click();
-
-                    alert(`Book found: "${title}"! Form auto-filled.`);
-                } else {
-                    alert(`No automatic record found for ISBN (${cleanIsbn}). Please enter details manually.`);
-                    manualModeBtn.click();
-                }
-
-            } catch (err) {
-                console.error("Critical Scanner Error:", err);
-                alert("Barcode processing error. Switching to manual mode.");
-                manualModeBtn.click();
-            }
-        }
 
         function compressAndResizeImage(file, maxWidth, maxHeight, quality) {
             return new Promise((resolve, reject) => {
@@ -1202,7 +956,7 @@
             event.preventDefault();
 
             if (!selectedImageData) {
-                alert('Please select an image by uploading a photo, taking one, or scanning an ISBN.');
+                alert('Please upload or take a photo of the book cover.');
                 return;
             }
 
