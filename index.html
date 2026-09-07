@@ -109,7 +109,6 @@
             backdrop-filter: blur(4px);
         }
 
-        /* Mode Selector Sub-Tabs */
         .mode-selector {
             display: flex;
             gap: 0.5rem;
@@ -497,13 +496,11 @@
         <div class="form-container">
             <div id="statusMessage" class="status-message"></div>
 
-            <!-- Add Book Option Tabs -->
             <div class="mode-selector">
                 <button type="button" class="mode-btn active" id="manualModeBtn">✏️ Manual Entry</button>
                 <button type="button" class="mode-btn" id="scanModeBtn">📷 Scan ISBN</button>
             </div>
 
-            <!-- OPTION 2: SCANNER PANEL -->
             <div id="scanMode" class="add-mode">
                 <div style="text-align: center; padding: 1rem 0;">
                     <p style="margin-bottom: 1rem; color: #4a5568; font-size: 0.95rem;">Scan a book's ISBN barcode using your camera to auto-populate the details.</p>
@@ -513,7 +510,6 @@
                 </div>
             </div>
 
-            <!-- OPTION 1: MANUAL FORM (Also handles scanned results) -->
             <div id="manualMode" class="add-mode active">
                 <form id="bookForm">
                     <div class="form-group">
@@ -865,22 +861,22 @@
                 let coverUrl = '';
                 let found = false;
 
-                // 1. Try Google Books API First (Stronger lookup for newer ISBNs)
+                // Tier 1: Try Google Books API First
                 const googleRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
                 const googleData = await googleRes.json();
 
-                if (googleData.items && googleData.items.length > 0) {
+                if (googleData.totalItems > 0 && googleData.items) {
                     found = true;
                     const info = googleData.items[0].volumeInfo;
                     title = info.title || '';
                     author = info.authors ? info.authors.join(', ') : '';
                     if (info.imageLinks?.thumbnail) {
                         coverUrl = info.imageLinks.thumbnail.replace('http:', 'https:');
-                        // Proxy cover through corsproxy to bypass strict browser image policy
-                        coverUrl = `https://corsproxy.io/?${encodeURIComponent(coverUrl)}`;
                     }
-                } else {
-                    // 2. Fallback to OpenLibrary API
+                } 
+
+                // Tier 2: Fallback to OpenLibrary Data API
+                if (!found) {
                     const openLibRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
                     const openLibData = await openLibRes.json();
                     const bookData = openLibData[`ISBN:${isbn}`];
@@ -889,7 +885,26 @@
                         found = true;
                         title = bookData.title || '';
                         author = bookData.authors?.length > 0 ? bookData.authors[0].name : '';
-                        coverUrl = bookData.cover?.large || '';
+                        coverUrl = bookData.cover?.large || bookData.cover?.medium || '';
+                    }
+                }
+
+                // Tier 3: Direct raw ISBN lookup via OpenLibrary
+                if (!found) {
+                    const altRes = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
+                    if (altRes.ok) {
+                        const altData = await altRes.json();
+                        found = true;
+                        title = altData.title || '';
+                        coverUrl = `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`;
+                        
+                        if (altData.authors && altData.authors.length > 0) {
+                            const authorRes = await fetch(`https://openlibrary.org${altData.authors[0].key}.json`);
+                            if (authorRes.ok) {
+                                const authorData = await authorRes.json();
+                                author = authorData.name || '';
+                            }
+                        }
                     }
                 }
 
@@ -898,7 +913,6 @@
                     if (author) document.getElementById('author').value = author;
 
                     if (!coverUrl && title) {
-                        // Dynamic placeholder image fallback if no image exists in APIs
                         coverUrl = `https://via.placeholder.com/300x450/2bc48a/ffffff?text=${encodeURIComponent(title)}`;
                     }
 
@@ -921,7 +935,7 @@
 
             } catch (err) {
                 console.error("ISBN lookup error:", err);
-                alert("Failed to retrieve book information.");
+                alert("Failed to retrieve book information automatically. Switching to manual mode.");
                 manualModeBtn.click();
             }
         }
