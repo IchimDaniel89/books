@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Personal Library</title>
-    <!-- Barcode Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         * {
@@ -491,7 +490,6 @@
         <button class="nav-btn" id="libraryTab">View Library</button>
     </nav>
 
-    <!-- VIEW 1: Add Book -->
     <section id="addView" class="view">
         <div class="form-container">
             <div id="statusMessage" class="status-message"></div>
@@ -564,7 +562,6 @@
         </div>
     </section>
 
-    <!-- Camera Viewfinder Overlay -->
     <div id="scannerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; align-items: center; justify-content: center; flex-direction: column;">
         <div style="background: white; padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 400px; text-align: center;">
             <h3 style="margin-top: 0;">Align Barcode in Frame</h3>
@@ -573,7 +570,6 @@
         </div>
     </div>
 
-    <!-- VIEW 2: View Library -->
     <section id="libraryView" class="view">
         <div class="stats-container">
             <div class="total-count" id="totalCount">Total Books: 0</div>
@@ -628,7 +624,6 @@
         </div>
     </section>
 
-    <!-- LOGIN MODAL -->
     <div class="modal-overlay" id="loginModal">
         <div class="modal-card">
             <button class="close-modal" id="closeModal">✕</button>
@@ -818,7 +813,7 @@
             console.error("Firestore snapshot error:", error);
         });
 
-        // ISBN BARCODE SCANNER LOGIC
+        // MULTI-TIER ISBN BARCODE SCANNER LOGIC
         startScanBtn.addEventListener('click', () => {
             scannerModal.style.display = 'flex';
             html5QrCode = new Html5Qrcode("reader");
@@ -848,94 +843,133 @@
         closeScanBtn.addEventListener('click', stopScanner);
 
         async function onBarcodeDetected(decodedText) {
-            let isbn = decodedText.replace(/[^0-9]/g, '');
-            if (isbn.length > 13) {
-                isbn = isbn.substring(0, 13);
+            let cleanIsbn = decodedText.replace(/[^0-9X]/gi, '').trim();
+            if (cleanIsbn.length > 13) {
+                cleanIsbn = cleanIsbn.substring(0, 13);
             }
 
             stopScanner();
 
+            let title = '';
+            let author = '';
+            let coverUrl = '';
+            let found = false;
+
             try {
-                let title = '';
-                let author = '';
-                let coverUrl = '';
-                let found = false;
+                // TIER 1: Google Books API
+                try {
+                    const googleRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${cleanIsbn}`);
+                    const googleData = await googleRes.json();
 
-                // Tier 1: Try Google Books API First
-                const googleRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
-                const googleData = await googleRes.json();
-
-                if (googleData.totalItems > 0 && googleData.items) {
-                    found = true;
-                    const info = googleData.items[0].volumeInfo;
-                    title = info.title || '';
-                    author = info.authors ? info.authors.join(', ') : '';
-                    if (info.imageLinks?.thumbnail) {
-                        coverUrl = info.imageLinks.thumbnail.replace('http:', 'https:');
-                    }
-                } 
-
-                // Tier 2: Fallback to OpenLibrary Data API
-                if (!found) {
-                    const openLibRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
-                    const openLibData = await openLibRes.json();
-                    const bookData = openLibData[`ISBN:${isbn}`];
-
-                    if (bookData) {
+                    if (googleData.totalItems > 0 && googleData.items) {
+                        const info = googleData.items[0].volumeInfo;
+                        title = info.title || '';
+                        author = info.authors ? info.authors.join(', ') : '';
+                        if (info.imageLinks?.thumbnail) {
+                            coverUrl = info.imageLinks.thumbnail.replace('http:', 'https:');
+                        }
                         found = true;
-                        title = bookData.title || '';
-                        author = bookData.authors?.length > 0 ? bookData.authors[0].name : '';
-                        coverUrl = bookData.cover?.large || bookData.cover?.medium || '';
+                    }
+                } catch (e) {
+                    console.warn("Google Books lookup skipped/failed:", e);
+                }
+
+                // TIER 2: OpenLibrary API Direct ISBN Query
+                if (!found) {
+                    try {
+                        const openLibRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${cleanIsbn}&format=json&jscmd=data`);
+                        const openLibData = await openLibRes.json();
+                        const bookData = openLibData[`ISBN:${cleanIsbn}`];
+
+                        if (bookData) {
+                            title = bookData.title || '';
+                            author = bookData.authors?.length > 0 ? bookData.authors[0].name : '';
+                            coverUrl = bookData.cover?.large || bookData.cover?.medium || '';
+                            found = true;
+                        }
+                    } catch (e) {
+                        console.warn("OpenLibrary ISBN direct lookup failed:", e);
                     }
                 }
 
-                // Tier 3: Direct raw ISBN lookup via OpenLibrary
+                // TIER 3: OpenLibrary Search Index (Includes cataloged Romanian publishers)
                 if (!found) {
-                    const altRes = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
-                    if (altRes.ok) {
-                        const altData = await altRes.json();
-                        found = true;
-                        title = altData.title || '';
-                        coverUrl = `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`;
-                        
-                        if (altData.authors && altData.authors.length > 0) {
-                            const authorRes = await fetch(`https://openlibrary.org${altData.authors[0].key}.json`);
-                            if (authorRes.ok) {
-                                const authorData = await authorRes.json();
-                                author = authorData.name || '';
+                    try {
+                        const searchRes = await fetch(`https://openlibrary.org/search.json?q=${cleanIsbn}`);
+                        const searchData = await searchRes.json();
+
+                        if (searchData.numFound > 0 && searchData.docs.length > 0) {
+                            const doc = searchData.docs[0];
+                            title = doc.title || '';
+                            author = doc.author_name ? doc.author_name.join(', ') : '';
+                            if (doc.cover_i) {
+                                coverUrl = `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`;
+                            }
+                            found = true;
+                        }
+                    } catch (e) {
+                        console.warn("OpenLibrary Search API failed:", e);
+                    }
+                }
+
+                // TIER 4: Romanian Alternative Strategy (CORS Proxy -> Cărturești Scraper)
+                if (!found) {
+                    try {
+                        const targetUrl = encodeURIComponent(`https://carturesti.ro/product/search/${cleanIsbn}`);
+                        const proxyRes = await fetch(`https://api.allorigins.win/get?url=${targetUrl}`);
+                        const proxyData = await proxyRes.json();
+
+                        if (proxyData.contents) {
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(proxyData.contents, 'text/html');
+
+                            const ogTitle = doc.querySelector('meta[property="og:title"]')?.getAttribute('content');
+                            const ogImage = doc.querySelector('meta[property="og:image"]')?.getAttribute('content');
+                            const ogDesc = doc.querySelector('meta[property="og:description"]')?.getAttribute('content');
+
+                            if (ogTitle) {
+                                title = ogTitle.split('|')[0].replace(' - Carte', '').trim();
+                                coverUrl = ogImage || '';
+                                
+                                if (ogDesc && ogDesc.includes('de ')) {
+                                    author = ogDesc.split('de ')[1].split('.')[0].trim();
+                                }
+
+                                found = true;
                             }
                         }
+                    } catch (e) {
+                        console.warn("Romanian CORS fallback scraper failed:", e);
                     }
                 }
 
-                if (found) {
-                    if (title) document.getElementById('title').value = title;
-                    if (author) document.getElementById('author').value = author;
+                // POPULATE FORM OR SWAP TO MANUAL ENTRY
+                if (found && title) {
+                    document.getElementById('title').value = title;
+                    document.getElementById('author').value = author;
 
-                    if (!coverUrl && title) {
+                    if (!coverUrl) {
                         coverUrl = `https://via.placeholder.com/300x450/2bc48a/ffffff?text=${encodeURIComponent(title)}`;
                     }
 
-                    if (coverUrl) {
-                        selectedImageData = coverUrl;
-                        imagePreview.src = coverUrl;
-                        previewContainer.style.display = 'block';
-                        uploadCard.classList.remove('selected');
-                        cameraCard.classList.remove('selected');
-                    }
+                    selectedImageData = coverUrl;
+                    imagePreview.src = coverUrl;
+                    previewContainer.style.display = 'block';
+                    uploadCard.classList.remove('selected');
+                    cameraCard.classList.remove('selected');
 
                     document.getElementById('readingStatus').value = 'To be Read';
                     manualModeBtn.click();
 
-                    alert(`Book found: "${title}"! Status set to "To be Read".`);
+                    alert(`Book found: "${title}"! Form auto-filled.`);
                 } else {
-                    alert(`No records found for ISBN: ${isbn}. Please enter details manually.`);
+                    alert(`No automatic record found for ISBN (${cleanIsbn}). Please enter details manually.`);
                     manualModeBtn.click();
                 }
 
             } catch (err) {
-                console.error("ISBN lookup error:", err);
-                alert("Failed to retrieve book information automatically. Switching to manual mode.");
+                console.error("Critical Scanner Error:", err);
+                alert("Barcode processing error. Switching to manual mode.");
                 manualModeBtn.click();
             }
         }
